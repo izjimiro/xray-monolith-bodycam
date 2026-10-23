@@ -195,6 +195,7 @@ protected:
 
 	CAnonHudItem* m_scopeItem = NULL;
 public:
+	CAnonHudItem* ScopeHudItem() const { return m_scopeItem; }
 	void signal_HideComplete();
 	virtual bool Action(u16 cmd, u32 flags);
 

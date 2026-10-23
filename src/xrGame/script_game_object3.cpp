@@ -2441,47 +2441,46 @@ bool CScriptGameObject::WeaponInGrenadeMode()
 	return wpn->m_bGrenadeMode;
 }
 
+// Model that owns bone_name: the object's HUD model or, for a weapon, its MAS modular scope.
+// The modular scope is a CAnonHudItem owned by the weapon, not a game object, so scripts reach it only through here.
+static IKinematics* FindBoneModel(CGameObject& object, LPCSTR bone_name, bool bHud, u16& bone_id)
+{
+	bone_id = BI_NONE;
+	CHudItem* itm = smart_cast<CHudItem*>(&object);
+	IKinematics* k = (bHud && itm && itm->HudItemData()) ? itm->HudItemData()->m_model : object.Visual()->dcast_PKinematics();
+	if (k)
+		bone_id = k->LL_BoneID(bone_name);
+	if (bone_id != BI_NONE || !bHud)
+		return k;
+
+	CWeapon* wpn = smart_cast<CWeapon*>(&object);
+	CAnonHudItem* scope = wpn ? wpn->ScopeHudItem() : nullptr;
+	if (!scope || !scope->HudItemData())
+		return nullptr;
+	k = scope->HudItemData()->m_model;
+	bone_id = k ? k->LL_BoneID(bone_name) : BI_NONE;
+	return bone_id != BI_NONE ? k : nullptr;
+}
+
 void CScriptGameObject::SetBoneVisible(LPCSTR bone_name, bool bVisibility, bool bRecursive, bool bHud)
 {
-	IKinematics* k = nullptr;
-
-	CHudItem* itm = smart_cast<CHudItem*>(&object());
-	if (bHud && itm && itm->HudItemData())
-		k = itm->HudItemData()->m_model;
-	else
-		k = object().Visual()->dcast_PKinematics();
-
-	if (!k)
-		return;
-
-	u16 bone_id = k->LL_BoneID(bone_name);
-	if (bone_id == BI_NONE)
+	u16 bone_id;
+	IKinematics* k = FindBoneModel(object(), bone_name, bHud, bone_id);
+	if (!k || bone_id == BI_NONE)
 		return;
 
 	if (bVisibility != k->LL_GetBoneVisible(bone_id))
 		k->LL_SetBoneVisible(bone_id, bVisibility, bRecursive);
-
-	return;
 }
 
 bool CScriptGameObject::IsBoneVisible(LPCSTR bone_name, bool bHud)
 {
-	IKinematics* k = nullptr;
-
-	CHudItem* itm = smart_cast<CHudItem*>(&object());
-	if (bHud && itm && itm->HudItemData())
-		k = itm->HudItemData()->m_model;
-	else
-		k = object().Visual()->dcast_PKinematics();
-
-	if (!k)
+	u16 bone_id;
+	IKinematics* k = FindBoneModel(object(), bone_name, bHud, bone_id);
+	if (!k || bone_id == BI_NONE)
 		return false;
 
-	u16 bone_id = k->LL_BoneID(bone_name);
-	if (bone_id == BI_NONE)
-		return false;
-
-	return k->LL_GetBoneVisible(bone_id) == TRUE ? true : false;
+	return k->LL_GetBoneVisible(bone_id) == TRUE;
 }
 
 float CScriptGameObject::GetLuminocityHemi()
