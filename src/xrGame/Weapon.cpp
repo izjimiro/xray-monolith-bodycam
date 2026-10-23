@@ -1883,6 +1883,7 @@ bool CWeapon::Action(u16 cmd, u32 flags)
 				bool new_state = !pActor->is_safemode();
 				pActor->set_safemode(new_state);
 				SetPending(TRUE);
+				last_idx = 4; // UpdateHudAdditional clears pending at the end of a safemode move, even one reversed midway
 
 				if (!new_state && m_safemode_anm[1].name)
 					PlayBlendAnm(m_safemode_anm[1].name, m_safemode_anm[1].speed, m_safemode_anm[1].power, false);
