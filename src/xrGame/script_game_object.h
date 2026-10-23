@@ -1145,14 +1145,15 @@ public:
 
 	bool is_bone_visible(u16 bone_id, bool bHud);
 	bool is_bone_visible(u16 bone_id) { return is_bone_visible(bone_id, false); }
-	bool is_bone_visible(LPCSTR bone_name, bool bHud) { return is_bone_visible(bone_id(bone_name, bHud), bHud); }
+	// hud bone missing in the item's own model: IsBoneVisible/SetBoneVisible also look in the MAS modular scope
+	bool is_bone_visible(LPCSTR bone_name, bool bHud) { u16 id = bone_id(bone_name, bHud); return (id == BI_NONE && bHud) ? IsBoneVisible(bone_name, bHud) : is_bone_visible(id, bHud); }
 	bool is_bone_visible(LPCSTR bone_name) { return is_bone_visible(bone_id(bone_name), false); }
 
 	bool is_physical_scope_glass_bone(LPCSTR bone_name);
 	void set_physical_scope_glass_mask(LPCSTR bone_name, bool enabled);
 	void set_bone_visible(u16 bone_id, bool bVisibility, bool bRecursive, bool bHud);
 	void set_bone_visible(u16 bone_id, bool bVisibility, bool bRecursive) { set_bone_visible(bone_id, bVisibility, bRecursive, false); }
-	void set_bone_visible(LPCSTR bone_name, bool bVisibility, bool bRecursive, bool bHud) { set_bone_visible(bone_id(bone_name, bHud), bVisibility, bRecursive, bHud); }
+	void set_bone_visible(LPCSTR bone_name, bool bVisibility, bool bRecursive, bool bHud) { u16 id = bone_id(bone_name, bHud); if (id == BI_NONE && bHud) SetBoneVisible(bone_name, bVisibility, bRecursive, bHud); else set_bone_visible(id, bVisibility, bRecursive, bHud); }
 	void set_bone_visible(LPCSTR bone_name, bool bVisibility, bool bRecursive) { set_bone_visible(bone_id(bone_name), bVisibility, bRecursive, false); }
 
 	Fmatrix bone_transform(u16 bone_id, bool bHud);
