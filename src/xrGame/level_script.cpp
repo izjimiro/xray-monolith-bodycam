@@ -1980,6 +1980,8 @@ LPCSTR HudBoneNames(u8 part)
 	return names.c_str();
 }
 
+bool HudHandContactParam(LPCSTR name, float value) { return g_player_hud && g_player_hud->m_hand_contact.SetParam(name, value); }
+
 void PlayBlendAnmBodycam(LPCSTR name, u8 part, float speed, float power, bool bLooped, bool no_restart,
 	LPCSTR pivot_bone, float lowering_influence)
 {
@@ -3266,6 +3268,7 @@ void CLevel::script_register(lua_State* L)
 		def("play_hud_anm", PlayBlendAnm),
 		def("play_hud_anm_bodycam", PlayBlendAnmBodycam),
 		def("hud_hand_contact", HudHandContactRequest),
+		def("hud_hand_contact_param", HudHandContactParam),
 		def("hud_clip_key", HudClipKey),
 		def("hud_clip_value", HudClipValue),
 		def("hud_clip_remove_key", HudClipRemoveKey),

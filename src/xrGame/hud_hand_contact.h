@@ -17,6 +17,34 @@ public:
 	void Apply(player_hud& hud);
 	// The HUD models changed: bone ids and weapon geometry are stale.
 	void Reset();
+	// Tuning without rebuilding the engine (game.hud_hand_contact_param, configs\plugins\hud_hand_contact.ltx).
+	// False for an unknown name.
+	bool SetParam(LPCSTR name, float value);
+
+	struct Params
+	{
+		float cell = 0.01f;           // weapon mesh grid, m (rebuilds the grid)
+		float range = 0.025f;         // hand search distance, m
+		float touch = 0.004f;         // fingers look this far past their radius, m
+		float palm_radius = 0.014f;
+		float base_radius = 0.009f;   // finger roots
+		float finger_radius = 0.0075f;
+		float tip_radius = 0.0065f;
+		float tip_length = 0.8f;      // end phalanx length as a share of the middle one
+		float samples = 2.f;          // samples per phalanx
+		float max_push = 0.08f;       // m
+		float push_response = 18.f;   // 1/s
+		float instant_push = 0.f;     // 1: a deeper hand push is applied at once
+		float close_response = 7.f;   // 1/s, fingers closing onto the weapon
+		float open_response = 7.f;    // 1/s, fingers backing out of it
+		float curl_hysteresis = 5.2f; // deg: a closing target must change this much
+		float open_hysteresis = 1.7f; // deg: an opening target must change this much
+		float open_limit = 20.f;      // deg
+		float curl_limit = 50.f;      // deg
+		float search_steps = 6.f;
+		float recheck = 0.f;          // 1: check every joint every frame, search again at once if it goes in
+		float deep = 0.f;             // 1: also find finger points well inside thick parts
+	};
 
 private:
 	struct Tri
@@ -41,6 +69,7 @@ private:
 	// Any point (item space) closer to the weapon surface than its radius; deep also finds points
 	// well inside thick parts (a longer search).
 	bool Penetrates(const Fvector* points, const float* radii, int count, bool deep) const;
+	Params m_p;
 	void SolveFingers(IKinematics* K, const Fmatrix& to_item, float dt, float weight, bool grasp);
 
 	float m_weight = 0.f, m_target = 0.f, m_speed = 0.f;
