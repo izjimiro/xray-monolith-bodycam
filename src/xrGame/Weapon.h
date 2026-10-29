@@ -195,6 +195,7 @@ protected:
 
 	CAnonHudItem* m_scopeItem = NULL;
 public:
+	CAnonHudItem* ScopeHudItem() const { return m_scopeItem; }
 	void signal_HideComplete();
 	virtual bool Action(u16 cmd, u32 flags);
 
@@ -590,6 +591,7 @@ protected:
 	bool isGrenadeLauncherActive = false;
 	u8 zoomTypeBeforeLauncher = 0;
 	float m_fSafeModeRotateTime;
+	float m_sprint_pose = 0.f; // 0..1: sprint shows the lowered pose without lowering the weapon
 	SafemodeAnm m_safemode_anm[2];
 
 	Fmatrix m_Offset;

@@ -2484,6 +2484,38 @@ bool CScriptGameObject::IsBoneVisible(LPCSTR bone_name, bool bHud)
 	return k->LL_GetBoneVisible(bone_id) == TRUE ? true : false;
 }
 
+// MAS modular scope: a CAnonHudItem owned by the weapon, not a game object, so scripts reach its HUD bones only here
+static IKinematics* mas_scope_bone(CGameObject& obj, LPCSTR bone_name, u16& bone_id)
+{
+	CWeapon* wpn = smart_cast<CWeapon*>(&obj);
+	CAnonHudItem* scope = wpn ? wpn->ScopeHudItem() : nullptr;
+	IKinematics* k = (scope && scope->HudItemData()) ? scope->HudItemData()->m_model : nullptr;
+	bone_id = k ? k->LL_BoneID(bone_name) : BI_NONE;
+	return bone_id != BI_NONE ? k : nullptr;
+}
+
+// by name with bHud: the item's own HUD model first, then its MAS scope
+void CScriptGameObject::set_bone_visible(LPCSTR bone_name, bool bVisibility, bool bRecursive, bool bHud)
+{
+	u16 id = bone_id(bone_name, bHud);
+	if (id != BI_NONE || !bHud)
+		return set_bone_visible(id, bVisibility, bRecursive, bHud);
+
+	IKinematics* k = mas_scope_bone(object(), bone_name, id);
+	if (k && bVisibility != !!k->LL_GetBoneVisible(id))
+		k->LL_SetBoneVisible(id, bVisibility, bRecursive);
+}
+
+bool CScriptGameObject::is_bone_visible(LPCSTR bone_name, bool bHud)
+{
+	u16 id = bone_id(bone_name, bHud);
+	if (id != BI_NONE || !bHud)
+		return is_bone_visible(id, bHud);
+
+	IKinematics* k = mas_scope_bone(object(), bone_name, id);
+	return k && k->LL_GetBoneVisible(id);
+}
+
 float CScriptGameObject::GetLuminocityHemi()
 {
 	CObject* e = smart_cast<CObject*>(&object());

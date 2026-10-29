@@ -1145,14 +1145,14 @@ public:
 
 	bool is_bone_visible(u16 bone_id, bool bHud);
 	bool is_bone_visible(u16 bone_id) { return is_bone_visible(bone_id, false); }
-	bool is_bone_visible(LPCSTR bone_name, bool bHud) { return is_bone_visible(bone_id(bone_name, bHud), bHud); }
+	bool is_bone_visible(LPCSTR bone_name, bool bHud);
 	bool is_bone_visible(LPCSTR bone_name) { return is_bone_visible(bone_id(bone_name), false); }
 
 	bool is_physical_scope_glass_bone(LPCSTR bone_name);
 	void set_physical_scope_glass_mask(LPCSTR bone_name, bool enabled);
 	void set_bone_visible(u16 bone_id, bool bVisibility, bool bRecursive, bool bHud);
 	void set_bone_visible(u16 bone_id, bool bVisibility, bool bRecursive) { set_bone_visible(bone_id, bVisibility, bRecursive, false); }
-	void set_bone_visible(LPCSTR bone_name, bool bVisibility, bool bRecursive, bool bHud) { set_bone_visible(bone_id(bone_name, bHud), bVisibility, bRecursive, bHud); }
+	void set_bone_visible(LPCSTR bone_name, bool bVisibility, bool bRecursive, bool bHud);
 	void set_bone_visible(LPCSTR bone_name, bool bVisibility, bool bRecursive) { set_bone_visible(bone_id(bone_name), bVisibility, bRecursive, false); }
 
 	Fmatrix bone_transform(u16 bone_id, bool bHud);
