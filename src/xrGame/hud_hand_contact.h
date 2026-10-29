@@ -38,8 +38,8 @@ private:
 	bool ResolveBones(IKinematics* hand);
 	void BuildGeometry(IKinematics* weapon);
 	bool Closest(const Fvector& p, float range, Hit& hit) const;
-	// Signed distance minus radius of the most penetrating point (item space), large when clear.
-	float Clearance(const Fvector* points, const float* radii, int count) const;
+	// Any point (item space) closer to the weapon surface than its radius, or inside it.
+	bool Penetrates(const Fvector* points, const float* radii, int count) const;
 	void SolveFingers(IKinematics* K, const Fmatrix& to_item, float dt, float weight, bool grasp);
 
 	float m_weight = 0.f, m_target = 0.f, m_speed = 0.f;
@@ -66,4 +66,7 @@ private:
 
 	Fvector m_push = {0.f, 0.f, 0.f}; // smoothed hand push, left model space
 	float m_curl[kFingers][kJoints] = {}; // smoothed extra joint angles, radians
+	float m_curl_target[kFingers][kJoints] = {}; // last contact search result
+	int m_next_finger = 0; // round robin of the contact search
+	bool m_solve_all = true;
 };
