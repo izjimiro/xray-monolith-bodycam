@@ -945,6 +945,7 @@ void player_hud::load(const shared_str& player_hud_sect, bool force)
 	m_model->dcast_PKinematics()->LL_SetBoneVisible(l_arm, FALSE, TRUE);
 	m_model_2->dcast_PKinematics()->LL_SetBoneVisible(r_arm, FALSE, TRUE);
 	m_bodycam_hud_arms->Reset();
+	m_hand_contact.Reset();
 
 	CInifile::Sect& _sect = pSettings->r_section(player_hud_sect);
 	CInifile::SectCIt _b = _sect.Data.begin();
@@ -1617,6 +1618,8 @@ void player_hud::finalize_hud_pose(const HudPoseFrame& frame)
 	if (wep && m_attached_items[0])
 		wep->UpdateSvpWeaponPose();
 
+	m_hand_contact.Apply(*this);
+
 	FirstPerson::PublishHud(*this);
 }
 
@@ -2024,7 +2027,10 @@ void player_hud::attach_item(CHudItem* item)
 		pi->m_active_hand_blend = nullptr;
 		++pi->m_active_hand_generation;
 		if (item_idx == 0)
+		{
 			m_bodycam_hud_arms->OnWeaponChanged(pi);
+			m_hand_contact.Reset();
+		}
 
 		if (item_idx == 0 && m_attached_items[1])
 			m_attached_items[1]->m_parent_hud_item->CheckCompatibility(item);
@@ -2120,7 +2126,10 @@ void player_hud::detach_item_idx(u16 idx)
 	++m_attached_items[idx]->m_active_hand_generation;
 	m_attached_items[idx] = NULL;
 	if (idx == 0)
+	{
 		m_bodycam_hud_arms->OnWeaponChanged(nullptr);
+		m_hand_contact.Reset();
+	}
 
 	if (idx == 1)
 	{

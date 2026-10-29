@@ -567,6 +567,7 @@
     <ClInclude Include="bodycam_camera_rig.h" />
     <ClInclude Include="first_person_transform.h" />
     <ClInclude Include="bodycam_hud_arms.h" />
+    <ClInclude Include="hud_hand_contact.h" />
     <ClInclude Include="bodycam_math.h" />
     <ClInclude Include="bodycam_mouse_input.h" />
     <ClInclude Include="bodycam_movement_response.h" />
@@ -2848,6 +2849,7 @@
       <PrecompiledHeaderFile>pch_script.h</PrecompiledHeaderFile>
     </ClCompile>
     <ClCompile Include="bodycam_hud_arms.cpp" />
+    <ClCompile Include="hud_hand_contact.cpp" />
     <ClCompile Include="bodycam_console.cpp" />
     <ClCompile Include="bodycam_math.cpp" />
     <ClCompile Include="bodycam_mouse_input.cpp">

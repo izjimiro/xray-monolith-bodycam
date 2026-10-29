@@ -5,6 +5,7 @@
 class attachable_hud_item;
 class CWeapon;
 class player_hud;
+class IKinematics;
 
 namespace Bodycam
 {
@@ -34,4 +35,9 @@ private:
 
 	std::unique_ptr<State> m_state;
 };
+
+// Two-bone arm IK on a HUD model: moves the hand (and its fingers) by hand_delta so it ends at
+// target_hand, bends the elbow toward pole_elbow; the shoulder stays. twist may be BI_NONE.
+void SolveHudArm(IKinematics* K, u16 upperarm, u16 forearm, u16 twist, u16 hand, const Fvector& target_hand,
+	const Fvector& pole_elbow, const Fmatrix& hand_delta);
 } // namespace Bodycam

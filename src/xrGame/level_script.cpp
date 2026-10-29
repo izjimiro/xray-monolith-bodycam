@@ -1941,6 +1941,13 @@ void PlayBlendAnm(LPCSTR name, u8 part, float speed, float power, bool bLooped, 
 	g_player_hud->PlayBlendAnm(name, part, speed, power, bLooped, no_restart, pivot_bone);
 }
 
+// Left hand contact with the weapon (collision, arm IK, finger grasp) for script hand motion.
+void HudHandContactRequest(float weight, float fade, bool grasp)
+{
+	if (g_player_hud)
+		g_player_hud->m_hand_contact.Request(weight, fade, grasp);
+}
+
 void PlayBlendAnmBodycam(LPCSTR name, u8 part, float speed, float power, bool bLooped, bool no_restart,
 	LPCSTR pivot_bone, float lowering_influence)
 {
@@ -3226,6 +3233,7 @@ void CLevel::script_register(lua_State* L)
 		def("motion_exists", MotionExists),
 		def("play_hud_anm", PlayBlendAnm),
 		def("play_hud_anm_bodycam", PlayBlendAnmBodycam),
+		def("hud_hand_contact", HudHandContactRequest),
 		def("stop_hud_anm", StopBlendAnm),
 		def("stop_all_hud_anms", StopAllBlendAnms),
 		def("set_hud_anm_time", SetBlendAnmTime),

@@ -1628,6 +1628,17 @@ bool HudArms::State::ClassicRegripCamera(Fmatrix& local_delta) const
 	return true;
 }
 
+void SolveHudArm(IKinematics* K, u16 upperarm, u16 forearm, u16 twist, u16 hand, const Fvector& target_hand,
+	const Fvector& pole_elbow, const Fmatrix& hand_delta)
+{
+	HudArmChain arm;
+	arm.upperarm = upperarm;
+	arm.forearm = forearm;
+	arm.twist = twist;
+	arm.hand = hand;
+	SolveArmToHand(K, arm, target_hand, pole_elbow, hand_delta);
+}
+
 HudArms::HudArms(player_hud& hud) : m_state(std::make_unique<State>(hud)) {}
 
 HudArms::~HudArms() = default;
