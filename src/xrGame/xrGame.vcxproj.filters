@@ -5436,6 +5436,9 @@
     <ClInclude Include="hud_hand_contact.h">
       <Filter>Core\Client\Objects\actor\base</Filter>
     </ClInclude>
+    <ClInclude Include="hud_pose_clips.h">
+      <Filter>Core\Client\Objects\actor\base</Filter>
+    </ClInclude>
     <ClInclude Include="bodycam_math.h">
       <Filter>Core\Client\Objects\actor\base</Filter>
     </ClInclude>
@@ -9150,6 +9153,9 @@
       <Filter>Core\Client\Objects\actor\base</Filter>
     </ClCompile>
     <ClCompile Include="hud_hand_contact.cpp">
+      <Filter>Core\Client\Objects\actor\base</Filter>
+    </ClCompile>
+    <ClCompile Include="hud_pose_clips.cpp">
       <Filter>Core\Client\Objects\actor\base</Filter>
     </ClCompile>
     <ClCompile Include="bodycam_console.cpp">

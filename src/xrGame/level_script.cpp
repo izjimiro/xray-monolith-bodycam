@@ -1948,6 +1948,36 @@ void HudHandContactRequest(float weight, float fade, bool grasp)
 		g_player_hud->m_hand_contact.Request(weight, fade, grasp);
 }
 
+// HUD pose clips (see hud_pose_clips.h).
+void HudClipKey(LPCSTR clip, LPCSTR track, float time, Fvector pos, Fvector rot) { if (g_player_hud) g_player_hud->m_pose_clips.Key(clip, track, time, pos, rot); }
+void HudClipValue(LPCSTR clip, LPCSTR track, float time, float value) { if (g_player_hud) g_player_hud->m_pose_clips.Value(clip, track, time, value); }
+void HudClipRemoveKey(LPCSTR clip, LPCSTR track, float time) { if (g_player_hud) g_player_hud->m_pose_clips.RemoveKey(clip, track, time); }
+void HudClipRemove(LPCSTR clip) { if (g_player_hud) g_player_hud->m_pose_clips.Remove(clip); }
+void HudClipPlay(LPCSTR clip, float speed, bool loop, float fade) { if (g_player_hud) g_player_hud->m_pose_clips.Play(clip, speed, loop, fade); }
+void HudClipStop(LPCSTR clip, float fade) { if (g_player_hud) g_player_hud->m_pose_clips.Stop(clip, fade); }
+void HudClipPause(LPCSTR clip, bool paused) { if (g_player_hud) g_player_hud->m_pose_clips.Pause(clip, paused); }
+void HudClipSetTime(LPCSTR clip, float time) { if (g_player_hud) g_player_hud->m_pose_clips.SetTime(clip, time); }
+float HudClipTime(LPCSTR clip) { return g_player_hud ? g_player_hud->m_pose_clips.Time(clip) : 0.f; }
+float HudClipLength(LPCSTR clip) { return g_player_hud ? g_player_hud->m_pose_clips.Length(clip) : 0.f; }
+bool HudClipPlaying(LPCSTR clip) { return g_player_hud && g_player_hud->m_pose_clips.Playing(clip); }
+// Bone names of a HUD hands model (0 right, 1 left), comma separated.
+LPCSTR HudBoneNames(u8 part)
+{
+	static xr_string names;
+	names.clear();
+	if (!g_player_hud)
+		return "";
+	IKinematicsAnimated* model = part ? g_player_hud->m_model_2 : g_player_hud->m_model;
+	IKinematics* K = model ? model->dcast_PKinematics() : nullptr;
+	for (u16 b = 0; K && b < K->LL_BoneCount(); ++b)
+	{
+		if (!names.empty())
+			names += ",";
+		names += K->LL_BoneName_dbg(b);
+	}
+	return names.c_str();
+}
+
 void PlayBlendAnmBodycam(LPCSTR name, u8 part, float speed, float power, bool bLooped, bool no_restart,
 	LPCSTR pivot_bone, float lowering_influence)
 {
@@ -3234,6 +3264,18 @@ void CLevel::script_register(lua_State* L)
 		def("play_hud_anm", PlayBlendAnm),
 		def("play_hud_anm_bodycam", PlayBlendAnmBodycam),
 		def("hud_hand_contact", HudHandContactRequest),
+		def("hud_clip_key", HudClipKey),
+		def("hud_clip_value", HudClipValue),
+		def("hud_clip_remove_key", HudClipRemoveKey),
+		def("hud_clip_remove", HudClipRemove),
+		def("hud_clip_play", HudClipPlay),
+		def("hud_clip_stop", HudClipStop),
+		def("hud_clip_pause", HudClipPause),
+		def("hud_clip_set_time", HudClipSetTime),
+		def("hud_clip_time", HudClipTime),
+		def("hud_clip_length", HudClipLength),
+		def("hud_clip_playing", HudClipPlaying),
+		def("hud_bone_names", HudBoneNames),
 		def("stop_hud_anm", StopBlendAnm),
 		def("stop_all_hud_anms", StopAllBlendAnms),
 		def("set_hud_anm_time", SetBlendAnmTime),

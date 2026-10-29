@@ -107,11 +107,15 @@ struct TriCollector : public SEnumVerticesCallback
 void HudHandContact::Request(float weight, float fade, bool grasp)
 {
 	clamp(weight, 0.f, 1.f);
-	if (m_target <= 0.f && weight > 0.f && m_weight <= 0.f)
-		m_rebuild = true; // capture the weapon as it is now (MAS parts, current pose)
 	m_target = weight;
 	m_speed = fade > EPS_L ? 1.f / fade : 1000.f;
 	m_grasp = grasp;
+}
+
+void HudHandContact::Drive(float weight, bool grasp)
+{
+	m_drive = std::max(m_drive, std::min(weight, 1.f));
+	m_drive_grasp = m_drive_grasp || grasp;
 }
 
 void HudHandContact::Reset()
@@ -279,7 +283,7 @@ float HudHandContact::Clearance(const Fvector* points, const float* radii, int c
 	return worst;
 }
 
-void HudHandContact::SolveFingers(IKinematics* K, const Fmatrix& to_item, float dt)
+void HudHandContact::SolveFingers(IKinematics* K, const Fmatrix& to_item, float dt, float weight, bool grasp)
 {
 	const float follow = 1.f - _exp(-kCurlResponse * dt);
 	for (int f = 0; f < kFingers; ++f)
@@ -352,11 +356,11 @@ void HudHandContact::SolveFingers(IKinematics* K, const Fmatrix& to_item, float 
 			float target = 0.f;
 			if (clearance(0.f) < 0.f)
 				target = clearance(-kOpenLimit) < 0.f ? -kOpenLimit : boundary(-kOpenLimit, 0.f);
-			else if (m_grasp && clearance(kCurlLimit) < 0.f)
+			else if (grasp && clearance(kCurlLimit) < 0.f)
 				target = boundary(0.f, kCurlLimit);
 
 			m_curl[f][j] += (target - m_curl[f][j]) * follow;
-			const float angle = m_curl[f][j] * m_weight;
+			const float angle = m_curl[f][j] * weight;
 			if (_abs(angle) < 1e-5f)
 				continue;
 			const Fmatrix turn = RotationAbout(P[j], axis, angle);
@@ -375,7 +379,14 @@ void HudHandContact::Apply(player_hud& hud)
 		m_weight = std::min(m_target, m_weight + dt * m_speed);
 	else if (m_weight > m_target)
 		m_weight = std::max(m_target, m_weight - dt * m_speed);
-	if (m_weight <= 0.f)
+	const float weight = std::max(m_weight, m_drive);
+	const bool grasp = (m_weight > 0.f && m_grasp) || m_drive_grasp;
+	m_drive = 0.f;
+	m_drive_grasp = false;
+	if (weight > 0.f && m_effective <= 0.f)
+		m_rebuild = true; // capture the weapon as it is now (MAS parts, current pose)
+	m_effective = weight;
+	if (weight <= 0.f)
 	{
 		m_push.set(0.f, 0.f, 0.f);
 		std::fill(&m_curl[0][0], &m_curl[0][0] + kFingers * kJoints, 0.f);
@@ -444,7 +455,7 @@ void HudHandContact::Apply(player_hud& hud)
 	m_push.lerp(m_push, push, 1.f - _exp(-kPushResponse * dt));
 
 	Fvector shift;
-	shift.mul(m_push, m_weight);
+	shift.mul(m_push, weight);
 	if (shift.square_magnitude() > 1e-10f)
 	{
 		Fvector target;
@@ -454,5 +465,5 @@ void HudHandContact::Apply(player_hud& hud)
 		Bodycam::SolveHudArm(K, m_upperarm, m_forearm, m_twist, m_hand, target, BonePos(K, m_forearm), delta);
 	}
 
-	SolveFingers(K, to_item, dt);
+	SolveFingers(K, to_item, dt, weight, grasp);
 }

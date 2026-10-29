@@ -7,6 +7,7 @@ class CActor;
 #include "actor_defs.h"
 #include "player_hud_legs.h"
 #include "hud_hand_contact.h"
+#include "hud_pose_clips.h"
 #include <string>
 #include <vector>
 #include <cstdint>
@@ -562,6 +563,7 @@ public:
 	IKinematicsAnimated* m_model;
 	IKinematicsAnimated* m_model_2;
 	HudHandContact m_hand_contact; // left hand vs weapon for script hand motion (game.hud_hand_contact)
+	HudPoseClips m_pose_clips; // keyframed additive pose clips (game.hud_clip_*)
 	Fvector m_adjust_offset[2][10]; // pos,rot/ normal,aim,GL,aim_alt,safemode, normal2, attach_base, attach_mount, aim for attach, alt aim for attach
 	Fvector m_adjust_obj[2]; // pos,rot; used for the item/weapon itself
 	Fvector m_adjust_ui_offset[2]; // pos,rot; used for custom device ui
