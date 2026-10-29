@@ -16,13 +16,14 @@ constexpr float kRange = 0.025f;      // farthest surface a hand query looks for
 constexpr float kTouch = 0.004f;      // fingers only look this far past their radius
 constexpr float kPalmRadius = 0.014f;
 constexpr float kBaseRadius = 0.009f; // finger roots
-constexpr float kFingerRadius = 0.0075f;
-constexpr float kTipRadius = 0.0065f;
+constexpr float kFingerRadius = 0.0085f; // finger thickness / 2 plus a little skin margin
+constexpr float kTipRadius = 0.0075f;
 constexpr float kMaxPush = 0.08f;
 constexpr float kPushResponse = 18.f;  // 1/s
-constexpr float kCurlResponse = 7.f;   // 1/s
+constexpr float kCurlResponse = 7.f;   // 1/s, closing onto the weapon
+constexpr float kOpenResponse = 35.f;  // 1/s, backing out of it
 constexpr float kCurlHysteresis = 0.09f;  // rad: a new curl target must differ this much
-constexpr float kOpenHysteresis = 0.03f;  // rad: opening (penetration) reacts sooner
+constexpr float kOpenHysteresis = 0.f;    // rad: opening (penetration) is taken at once
 constexpr float kOpenLimit = 0.3490659f; // 20 deg
 constexpr float kCurlLimit = 0.8726646f; // 50 deg
 constexpr int kSearchSteps = 6;
@@ -277,20 +278,27 @@ bool HudHandContact::Closest(const Fvector& p, float range, Hit& hit) const
 	return true;
 }
 
-bool HudHandContact::Penetrates(const Fvector* points, const float* radii, int count) const
+bool HudHandContact::Penetrates(const Fvector* points, const float* radii, int count, bool deep) const
 {
 	Hit hit;
 	for (int i = 0; i < count; ++i)
-		if (Closest(points[i], radii[i] + kTouch, hit) && hit.distance < radii[i])
-			return true;
+	{
+		if (Closest(points[i], radii[i] + kTouch, hit))
+		{
+			if (hit.distance < radii[i])
+				return true;
+		}
+		else if (deep && Closest(points[i], kRange, hit) && hit.distance < 0.f)
+			return true; // well inside a thick part, away from its surface
+	}
 	return false;
 }
 
 void HudHandContact::SolveFingers(IKinematics* K, const Fmatrix& to_item, float dt, float weight, bool grasp)
 {
-	const float follow = 1.f - std::exp(-kCurlResponse * dt);
-	// The contact search is the expensive part: one finger per frame (all of them when contact starts),
-	// every frame eases toward the last result.
+	const float close = 1.f - std::exp(-kCurlResponse * dt), open = 1.f - std::exp(-kOpenResponse * dt);
+	// The full contact search is the expensive part: one finger per frame (all of them when contact starts).
+	// Every frame each joint is checked at the angle it is about to take and searched again if it would go in.
 	const int solve_finger = m_solve_all ? -1 : m_next_finger;
 	m_next_finger = (m_next_finger + 1) % kFingers;
 	m_solve_all = false;
@@ -298,10 +306,10 @@ void HudHandContact::SolveFingers(IKinematics* K, const Fmatrix& to_item, float 
 	{
 		if (m_finger[f][0] == BI_NONE || m_finger[f][1] == BI_NONE || m_finger[f][2] == BI_NONE)
 			continue;
-		Fvector P[4]; // joints and the estimated finger tip, left model space
+		Fvector P[4]; // joints and the finger tip, left model space
 		for (int j = 0; j < kJoints; ++j)
 			P[j] = BonePos(K, m_finger[f][j]);
-		P[3].sub(P[2], P[1]).mul(0.8f).add(P[2]);
+		P[3].sub(P[2], P[1]).add(P[2]); // the end phalanx is about as long as the middle one
 
 		// Bend axis: the plane the finger already curls in; a straight finger bends toward the weapon.
 		Fvector proximal, distal, axis;
@@ -328,52 +336,53 @@ void HudHandContact::SolveFingers(IKinematics* K, const Fmatrix& to_item, float 
 
 		for (int j = 0; j < kJoints; ++j)
 		{
-			if (solve_finger < 0 || solve_finger == f)
+			// Do the joint's distal phalanges (three samples each, item space) go into the weapon at a trial angle?
+			auto blocked = [&](float angle, bool deep)
 			{
-				// Do the joint's distal samples (item space) go into the weapon at a trial angle?
-				auto blocked = [&](float angle)
-				{
-					const Fmatrix turn = RotationAbout(P[j], axis, angle);
-					Fvector pts[6];
-					float radii[6];
-					int n = 0;
-					for (int k = j; k < 3; ++k)
+				const Fmatrix turn = RotationAbout(P[j], axis, angle);
+				Fvector pts[9];
+				float radii[9];
+				int n = 0;
+				for (int k = j; k < 3; ++k)
+					for (int q = 1; q <= 3; ++q)
 					{
-						Fvector mid, end;
-						mid.add(P[k], P[k + 1]).mul(0.5f);
-						end = P[k + 1];
-						turn.transform_tiny(mid);
-						turn.transform_tiny(end);
-						to_item.transform_tiny(pts[n], mid);
-						radii[n++] = kFingerRadius;
-						to_item.transform_tiny(pts[n], end);
-						radii[n++] = k == 2 ? kTipRadius : kFingerRadius;
+						Fvector at;
+						at.lerp(P[k], P[k + 1], q / 3.f);
+						turn.transform_tiny(at);
+						to_item.transform_tiny(pts[n], at);
+						radii[n++] = k == 2 && q == 3 ? kTipRadius : kFingerRadius;
 					}
-					return Penetrates(pts, radii, n);
-				};
-				// Boundary between a clear and a blocked angle, on the clear side.
-				auto boundary = [&](float clear, float block)
+				return Penetrates(pts, radii, n, deep);
+			};
+			// Boundary between a clear and a blocked angle, on the clear side.
+			auto boundary = [&](float clear, float block)
+			{
+				for (int i = 0; i < kSearchSteps; ++i)
 				{
-					for (int i = 0; i < kSearchSteps; ++i)
-					{
-						const float mid = 0.5f * (clear + block);
-						(blocked(mid) ? block : clear) = mid;
-					}
-					return clear;
-				};
+					const float mid = 0.5f * (clear + block);
+					(blocked(mid, false) ? block : clear) = mid;
+				}
+				return clear;
+			};
 
+			const bool scheduled = solve_finger < 0 || solve_finger == f;
+			if (scheduled || blocked(m_curl[f][j] * weight, false))
+			{
 				float target = 0.f;
-				if (blocked(0.f))
-					target = blocked(-kOpenLimit) ? -kOpenLimit : boundary(-kOpenLimit, 0.f);
-				else if (grasp && blocked(kCurlLimit))
+				if (blocked(0.f, true))
+					target = blocked(-kOpenLimit, true) ? -kOpenLimit : boundary(-kOpenLimit, 0.f);
+				else if (grasp && blocked(kCurlLimit, false))
 					target = boundary(0.f, kCurlLimit);
-				// Hysteresis: small changes of the contact angle keep the old target, no finger flicker.
+				// Hysteresis: small changes toward closing keep the old target, no finger flicker.
 				const float change = target - m_curl_target[f][j];
-				if (change < -kOpenHysteresis || change > kCurlHysteresis)
+				if (change < -kOpenHysteresis || change > kCurlHysteresis || !scheduled)
 					m_curl_target[f][j] = target;
+				if (!scheduled)
+					m_curl[f][j] = std::min(m_curl[f][j], target); // it was going in: no easing back out
 			}
 
-			m_curl[f][j] += (m_curl_target[f][j] - m_curl[f][j]) * follow;
+			const float goal = m_curl_target[f][j];
+			m_curl[f][j] += (goal - m_curl[f][j]) * (goal < m_curl[f][j] ? open : close);
 			const float angle = m_curl[f][j] * weight;
 			if (_abs(angle) < 1e-5f)
 				continue;
@@ -467,7 +476,11 @@ void HudHandContact::Apply(player_hud& hud)
 	if (push.magnitude() > kMaxPush)
 		push.normalize().mul(kMaxPush);
 	from_item.transform_dir(push);
-	m_push.lerp(m_push, push, 1.f - std::exp(-kPushResponse * dt));
+	// A deeper push is taken at once (no sinking in), a smaller one eases back.
+	if (push.square_magnitude() >= m_push.square_magnitude())
+		m_push = push;
+	else
+		m_push.lerp(m_push, push, 1.f - std::exp(-kPushResponse * dt));
 
 	Fvector shift;
 	shift.mul(m_push, weight);

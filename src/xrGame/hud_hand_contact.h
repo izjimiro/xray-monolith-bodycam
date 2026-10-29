@@ -38,8 +38,9 @@ private:
 	bool ResolveBones(IKinematics* hand);
 	void BuildGeometry(IKinematics* weapon);
 	bool Closest(const Fvector& p, float range, Hit& hit) const;
-	// Any point (item space) closer to the weapon surface than its radius, or inside it.
-	bool Penetrates(const Fvector* points, const float* radii, int count) const;
+	// Any point (item space) closer to the weapon surface than its radius; deep also finds points
+	// well inside thick parts (a longer search).
+	bool Penetrates(const Fvector* points, const float* radii, int count, bool deep) const;
 	void SolveFingers(IKinematics* K, const Fmatrix& to_item, float dt, float weight, bool grasp);
 
 	float m_weight = 0.f, m_target = 0.f, m_speed = 0.f;
