@@ -1960,6 +1960,8 @@ void HudClipSetTime(LPCSTR clip, float time) { if (g_player_hud) g_player_hud->m
 float HudClipTime(LPCSTR clip) { return g_player_hud ? g_player_hud->m_pose_clips.Time(clip) : 0.f; }
 float HudClipLength(LPCSTR clip) { return g_player_hud ? g_player_hud->m_pose_clips.Length(clip) : 0.f; }
 bool HudClipPlaying(LPCSTR clip) { return g_player_hud && g_player_hud->m_pose_clips.Playing(clip); }
+bool HudCaptureStart(LPCSTR file, LPCSTR clip) { return g_player_hud && g_player_hud->m_pose_clips.CaptureStart(file, clip); }
+void HudCaptureStop() { if (g_player_hud) g_player_hud->m_pose_clips.CaptureStop(); }
 // Bone names of a HUD hands model (0 right, 1 left), comma separated.
 LPCSTR HudBoneNames(u8 part)
 {
@@ -3276,6 +3278,8 @@ void CLevel::script_register(lua_State* L)
 		def("hud_clip_length", HudClipLength),
 		def("hud_clip_playing", HudClipPlaying),
 		def("hud_bone_names", HudBoneNames),
+		def("hud_capture_start", HudCaptureStart),
+		def("hud_capture_stop", HudCaptureStop),
 		def("stop_hud_anm", StopBlendAnm),
 		def("stop_all_hud_anms", StopAllBlendAnms),
 		def("set_hud_anm_time", SetBlendAnmTime),

@@ -13,7 +13,7 @@ class player_hud;
 class HudPoseClips
 {
 public:
-	~HudPoseClips() { Reset(); }
+	~HudPoseClips() { CaptureStop(); Reset(); }
 	void Key(LPCSTR clip, LPCSTR track, float time, const Fvector& pos, const Fvector& rot);
 	void Value(LPCSTR clip, LPCSTR track, float time, float value);
 	void RemoveKey(LPCSTR clip, LPCSTR track, float time);
@@ -29,6 +29,13 @@ public:
 	// Once per frame in the HUD pose, after the script layers and before the items attach.
 	void Apply(player_hud& hud);
 	void Reset();
+
+	// Bake: every frame, the hands bones (left arm from the left model) as local transforms
+	// relative to the HUD before the clips, with the time of clip. Text file under $game_anims$,
+	// turned into an OMF motion by docs\tools\anm\capture2omf.py.
+	bool CaptureStart(LPCSTR file, LPCSTR clip);
+	void CaptureStop();
+	void Capture(player_hud& hud);
 
 private:
 	struct Key_
@@ -58,4 +65,8 @@ private:
 	static Key_ Sample(const Track& track, float t);
 
 	xr_vector<Clip*> m_clips;
+	Fmatrix m_base = Fidentity; // HUD transform before the clips, this frame
+	FILE* m_capture = nullptr;
+	shared_str m_capture_clip;
+	bool m_capture_header = false;
 };

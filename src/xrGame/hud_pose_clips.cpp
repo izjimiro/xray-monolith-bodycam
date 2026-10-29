@@ -257,6 +257,7 @@ void HudPoseClips::Apply(player_hud& hud)
 	IKinematics* L = hud.m_model_2 ? hud.m_model_2->dcast_PKinematics() : nullptr;
 	if (!R || !L)
 		return;
+	m_base = hud.m_transform;
 	const float dt = std::min(Device.fTimeDelta, 0.05f);
 	const u16 r_lead = R->LL_BoneID("lead_gun"), l_lead = L->LL_BoneID("lead_gun");
 
@@ -343,5 +344,77 @@ void HudPoseClips::Apply(player_hud& hud)
 			const Key_ k = Sample(*entry.second, c->time);
 			MoveHierarchy(K, id, InFrame(K->LL_GetTransform(id), Offset(k.pos, k.rot, w)));
 		}
+	}
+}
+
+bool HudPoseClips::CaptureStart(LPCSTR file, LPCSTR clip)
+{
+	CaptureStop();
+	string_path path;
+	FS.update_path(path, "$game_anims$", file);
+	m_capture = fopen(path, "w");
+	if (!m_capture)
+	{
+		Msg("! [hud_clip] can't write capture %s", path);
+		return false;
+	}
+	m_capture_clip = clip;
+	m_capture_header = false;
+	Msg("[hud_clip] capturing [%s] to %s", clip, path);
+	return true;
+}
+
+void HudPoseClips::CaptureStop()
+{
+	if (m_capture)
+		fclose(m_capture);
+	m_capture = nullptr;
+}
+
+void HudPoseClips::Capture(player_hud& hud)
+{
+	if (!m_capture)
+		return;
+	IKinematics* R = hud.m_model ? hud.m_model->dcast_PKinematics() : nullptr;
+	IKinematics* L = hud.m_model_2 ? hud.m_model_2->dcast_PKinematics() : nullptr;
+	if (!R || !L)
+		return;
+	const u16 count = R->LL_BoneCount();
+	if (!m_capture_header)
+	{
+		fprintf(m_capture, "hud_capture 1\nbones %u\n", u32(count));
+		for (u16 b = 0; b < count; ++b)
+		{
+			const u16 parent = R->LL_GetData(b).GetParentID();
+			fprintf(m_capture, "%s %s\n", R->LL_BoneName_dbg(b), parent == BI_NONE ? "-" : R->LL_BoneName_dbg(parent));
+		}
+		m_capture_header = true;
+	}
+	const Clip* c = Find(m_capture_clip.c_str());
+	fprintf(m_capture, "frame %.5f\n", c ? c->time : 0.f);
+
+	Fmatrix inv_base;
+	inv_base.invert(m_base);
+	const u16 l_root = R->LL_BoneID("l_clavicle");
+	xr_vector<Fmatrix> model(count);
+	for (u16 b = 0; b < count; ++b)
+	{
+		const bool left = l_root != BI_NONE && b < L->LL_BoneCount() && IsBelow(R, b, l_root);
+		Fmatrix world;
+		world.mul_43(left ? hud.m_transform_2 : hud.m_transform, (left ? L : R)->LL_GetTransform(b));
+		model[b].mul_43(inv_base, world);
+	}
+	for (u16 b = 0; b < count; ++b)
+	{
+		const u16 parent = R->LL_GetData(b).GetParentID();
+		Fmatrix local = model[b];
+		if (parent != BI_NONE)
+		{
+			Fmatrix inv_parent;
+			inv_parent.invert(model[parent]);
+			local.mul_43(inv_parent, model[b]);
+		}
+		fprintf(m_capture, "%.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f\n", local.i.x, local.i.y, local.i.z,
+			local.j.x, local.j.y, local.j.z, local.k.x, local.k.y, local.k.z, local.c.x, local.c.y, local.c.z);
 	}
 }

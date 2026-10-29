@@ -285,7 +285,7 @@ float HudHandContact::Clearance(const Fvector* points, const float* radii, int c
 
 void HudHandContact::SolveFingers(IKinematics* K, const Fmatrix& to_item, float dt, float weight, bool grasp)
 {
-	const float follow = 1.f - _exp(-kCurlResponse * dt);
+	const float follow = 1.f - std::exp(-kCurlResponse * dt);
 	for (int f = 0; f < kFingers; ++f)
 	{
 		if (m_finger[f][0] == BI_NONE || m_finger[f][1] == BI_NONE || m_finger[f][2] == BI_NONE)
@@ -452,7 +452,7 @@ void HudHandContact::Apply(player_hud& hud)
 	if (push.magnitude() > kMaxPush)
 		push.normalize().mul(kMaxPush);
 	from_item.transform_dir(push);
-	m_push.lerp(m_push, push, 1.f - _exp(-kPushResponse * dt));
+	m_push.lerp(m_push, push, 1.f - std::exp(-kPushResponse * dt));
 
 	Fvector shift;
 	shift.mul(m_push, weight);
