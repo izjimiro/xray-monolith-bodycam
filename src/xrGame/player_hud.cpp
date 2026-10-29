@@ -1493,8 +1493,6 @@ void player_hud::finalize_hud_pose(const HudPoseFrame& frame)
 		}
 	}
 
-	m_pose_clips.Apply(*this);
-
 	if (m_attached_items[0])
 		m_attached_items[0]->update(true);
 
@@ -1621,7 +1619,6 @@ void player_hud::finalize_hud_pose(const HudPoseFrame& frame)
 		wep->UpdateSvpWeaponPose();
 
 	m_hand_contact.Apply(*this);
-	m_pose_clips.Capture(*this);
 
 	FirstPerson::PublishHud(*this);
 }

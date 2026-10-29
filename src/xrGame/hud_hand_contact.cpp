@@ -11,7 +11,17 @@
 
 namespace
 {
-constexpr float kDegToRad = 0.017453292f;
+constexpr float kCell = 0.01f;          // weapon mesh grid, m
+constexpr float kRange = 0.03f;         // farthest surface a query looks for, m
+constexpr float kPalmRadius = 0.014f;
+constexpr float kRootRadius = 0.009f;   // finger roots
+constexpr float kFingerRadius = 0.008f;
+constexpr float kTipRadius = 0.007f;
+constexpr float kTipLength = 0.9f;      // end phalanx as a share of the middle one
+constexpr int kSamples = 3;             // per phalanx
+constexpr float kMaxPush = 0.06f;
+constexpr float kOpenLimit = 0.5235988f; // 30 deg
+constexpr int kSearchSteps = 12;
 
 // Left hand fingers: thumb, index .. little; root, middle, end joint.
 const char* const kFingerBones[5][3] = {
@@ -21,6 +31,8 @@ const char* const kFingerBones[5][3] = {
 	{"bip01_l_finger3", "bip01_l_finger31", "bip01_l_finger32"},
 	{"bip01_l_finger4", "bip01_l_finger41", "bip01_l_finger42"},
 };
+
+float MinJerk(float t) { return t * t * t * (10.f + t * (-15.f + 6.f * t)); }
 
 Fvector BonePos(IKinematics* K, u16 id) { return K->LL_GetBoneInstance(id).mTransform.c; }
 
@@ -93,55 +105,20 @@ struct TriCollector : public SEnumVerticesCallback
 };
 } // namespace
 
-void HudHandContact::Request(float weight, float fade, bool grasp)
+void HudHandContact::Request(float weight, float fade)
 {
 	clamp(weight, 0.f, 1.f);
+	if (weight > 0.f && m_weight <= 0.f)
+		m_solve = true; // check the hand once, as it is when contact turns on
 	m_target = weight;
 	m_speed = fade > EPS_L ? 1.f / fade : 1000.f;
-	m_grasp = grasp;
-}
-
-void HudHandContact::Drive(float weight, bool grasp)
-{
-	m_drive = std::max(m_drive, std::min(weight, 1.f));
-	m_drive_grasp = m_drive_grasp || grasp;
-}
-
-bool HudHandContact::SetParam(LPCSTR name, float value)
-{
-	static const std::pair<LPCSTR, float Params::*> fields[] = {
-		{"cell", &Params::cell}, {"range", &Params::range}, {"touch", &Params::touch},
-		{"palm_radius", &Params::palm_radius}, {"base_radius", &Params::base_radius},
-		{"finger_radius", &Params::finger_radius}, {"tip_radius", &Params::tip_radius},
-		{"tip_length", &Params::tip_length}, {"samples", &Params::samples}, {"max_push", &Params::max_push},
-		{"push_response", &Params::push_response}, {"instant_push", &Params::instant_push},
-		{"close_response", &Params::close_response}, {"open_response", &Params::open_response},
-		{"curl_hysteresis", &Params::curl_hysteresis}, {"open_hysteresis", &Params::open_hysteresis},
-		{"open_limit", &Params::open_limit}, {"curl_limit", &Params::curl_limit},
-		{"search_steps", &Params::search_steps}, {"recheck", &Params::recheck}, {"deep", &Params::deep},
-	};
-	for (const auto& field : fields)
-		if (!xr_strcmp(field.first, name))
-		{
-			if (!xr_strcmp(name, "cell"))
-			{
-				value = std::max(value, 0.002f);
-				m_rebuild = m_rebuild || value != m_p.cell;
-			}
-			m_p.*field.second = value;
-			return true;
-		}
-	return false;
 }
 
 void HudHandContact::Reset()
 {
 	m_hand_model = nullptr;
 	m_weapon_model = nullptr;
-	m_rebuild = true;
-	m_push.set(0.f, 0.f, 0.f);
-	std::fill(&m_curl[0][0], &m_curl[0][0] + kFingers * kJoints, 0.f);
-	std::fill(&m_curl_target[0][0], &m_curl_target[0][0] + kFingers * kJoints, 0.f);
+	m_weight = m_target = 0.f;
 }
 
 bool HudHandContact::ResolveBones(IKinematics* K)
@@ -172,7 +149,6 @@ bool HudHandContact::ResolveBones(IKinematics* K)
 void HudHandContact::BuildGeometry(IKinematics* W)
 {
 	m_weapon_model = W;
-	m_rebuild = false;
 	m_tris.clear();
 	m_cells.clear();
 
@@ -215,9 +191,9 @@ void HudHandContact::BuildGeometry(IKinematics* W)
 			t.n.invert();
 
 	m_min = box.min;
-	m_nx = iFloor((box.max.x - box.min.x) / m_p.cell) + 1;
-	m_ny = iFloor((box.max.y - box.min.y) / m_p.cell) + 1;
-	m_nz = iFloor((box.max.z - box.min.z) / m_p.cell) + 1;
+	m_nx = iFloor((box.max.x - box.min.x) / kCell) + 1;
+	m_ny = iFloor((box.max.y - box.min.y) / kCell) + 1;
+	m_nz = iFloor((box.max.z - box.min.z) / kCell) + 1;
 	m_cells.resize(m_nx * m_ny * m_nz);
 	for (u32 i = 0; i < m_tris.size(); ++i)
 	{
@@ -227,9 +203,9 @@ void HudHandContact::BuildGeometry(IKinematics* W)
 		tb.modify(t.a);
 		tb.modify(t.b);
 		tb.modify(t.c);
-		const int x0 = iFloor((tb.min.x - m_min.x) / m_p.cell), x1 = iFloor((tb.max.x - m_min.x) / m_p.cell);
-		const int y0 = iFloor((tb.min.y - m_min.y) / m_p.cell), y1 = iFloor((tb.max.y - m_min.y) / m_p.cell);
-		const int z0 = iFloor((tb.min.z - m_min.z) / m_p.cell), z1 = iFloor((tb.max.z - m_min.z) / m_p.cell);
+		const int x0 = iFloor((tb.min.x - m_min.x) / kCell), x1 = iFloor((tb.max.x - m_min.x) / kCell);
+		const int y0 = iFloor((tb.min.y - m_min.y) / kCell), y1 = iFloor((tb.max.y - m_min.y) / kCell);
+		const int z0 = iFloor((tb.min.z - m_min.z) / kCell), z1 = iFloor((tb.max.z - m_min.z) / kCell);
 		for (int x = x0; x <= x1; ++x)
 			for (int y = y0; y <= y1; ++y)
 				for (int z = z0; z <= z1; ++z)
@@ -237,16 +213,16 @@ void HudHandContact::BuildGeometry(IKinematics* W)
 	}
 	m_stamp.assign(m_tris.size(), 0);
 	m_visit = 0;
-	Msg("[hud_hand_contact] weapon geometry: %u triangles, grid %dx%dx%d", u32(m_tris.size()), m_nx, m_ny, m_nz);
+	Msg("[hud_hand_contact] weapon geometry: %u triangles", u32(m_tris.size()));
 }
 
 bool HudHandContact::Closest(const Fvector& p, float range, Hit& hit) const
 {
 	if (m_tris.empty())
 		return false;
-	const int x0 = std::max(0, iFloor((p.x - range - m_min.x) / m_p.cell)), x1 = std::min(m_nx - 1, iFloor((p.x + range - m_min.x) / m_p.cell));
-	const int y0 = std::max(0, iFloor((p.y - range - m_min.y) / m_p.cell)), y1 = std::min(m_ny - 1, iFloor((p.y + range - m_min.y) / m_p.cell));
-	const int z0 = std::max(0, iFloor((p.z - range - m_min.z) / m_p.cell)), z1 = std::min(m_nz - 1, iFloor((p.z + range - m_min.z) / m_p.cell));
+	const int x0 = std::max(0, iFloor((p.x - range - m_min.x) / kCell)), x1 = std::min(m_nx - 1, iFloor((p.x + range - m_min.x) / kCell));
+	const int y0 = std::max(0, iFloor((p.y - range - m_min.y) / kCell)), y1 = std::min(m_ny - 1, iFloor((p.y + range - m_min.y) / kCell));
+	const int z0 = std::max(0, iFloor((p.z - range - m_min.z) / kCell)), z1 = std::min(m_nz - 1, iFloor((p.z + range - m_min.z) / kCell));
 	if (x0 > x1 || y0 > y1 || z0 > z1)
 		return false;
 	if (++m_visit == 0)
@@ -282,7 +258,6 @@ bool HudHandContact::Closest(const Fvector& p, float range, Hit& hit) const
 	const float d = _sqrt(best);
 	const bool inside = to_p.dotproduct(best_tri->n) < 0.f;
 	hit.distance = inside ? -d : d;
-	hit.point = best_point;
 	if (d > 1e-5f)
 		hit.normal.div(to_p, inside ? -d : d); // out of the weapon either way
 	else
@@ -290,119 +265,131 @@ bool HudHandContact::Closest(const Fvector& p, float range, Hit& hit) const
 	return true;
 }
 
-bool HudHandContact::Penetrates(const Fvector* points, const float* radii, int count, bool deep) const
+bool HudHandContact::Inside(const Fvector& p, float radius) const
 {
 	Hit hit;
-	for (int i = 0; i < count; ++i)
-	{
-		if (Closest(points[i], radii[i] + m_p.touch, hit))
-		{
-			if (hit.distance < radii[i])
-				return true;
-		}
-		else if (deep && Closest(points[i], m_p.range, hit) && hit.distance < 0.f)
-			return true; // well inside a thick part, away from its surface
-	}
-	return false;
+	return Closest(p, kRange, hit) && hit.distance < radius;
 }
 
-void HudHandContact::SolveFingers(IKinematics* K, const Fmatrix& to_item, float dt, float weight, bool grasp)
+// Bend axis: the plane the finger already curls in; a straight finger bends toward the weapon.
+bool HudHandContact::FingerAxis(IKinematics* K, int f, const Fmatrix& to_item, Fvector& axis) const
 {
-	const float close = 1.f - std::exp(-m_p.close_response * dt), open = 1.f - std::exp(-m_p.open_response * dt);
-	// The full contact search is the expensive part: one finger per frame (all of them when contact starts).
-	// Every frame each joint is checked at the angle it is about to take and searched again if it would go in.
-	const int solve_finger = m_solve_all ? -1 : m_next_finger;
-	m_next_finger = (m_next_finger + 1) % kFingers;
-	m_solve_all = false;
+	const Fvector p0 = BonePos(K, m_finger[f][0]), p1 = BonePos(K, m_finger[f][1]), p2 = BonePos(K, m_finger[f][2]);
+	Fvector proximal, distal;
+	proximal.sub(p1, p0);
+	distal.sub(p2, p1);
+	axis.crossproduct(proximal, distal);
+	if (axis.magnitude() < 1e-6f)
+	{
+		Hit hit;
+		Fvector root;
+		to_item.transform_tiny(root, p0);
+		if (!Closest(root, kRange, hit))
+			return false;
+		Fmatrix from_item;
+		from_item.invert(to_item);
+		Fvector toward = hit.normal;
+		toward.invert();
+		from_item.transform_dir(toward);
+		axis.crossproduct(proximal, toward);
+		if (axis.magnitude() < 1e-6f)
+			return false;
+	}
+	axis.normalize();
+	return true;
+}
+
+void HudHandContact::Solve(IKinematics* K, const Fmatrix& to_item)
+{
+	std::fill(&m_open[0][0], &m_open[0][0] + kFingers * kJoints, 0.f);
+	m_push.set(0.f, 0.f, 0.f);
+
+	// Hand: push the palm and the finger roots out of the weapon.
+	Fvector probes[5];
+	float radii[5];
+	int n = 0;
+	const Fvector hand = BonePos(K, m_hand);
+	if (m_finger[2][0] != BI_NONE)
+	{
+		probes[n].lerp(hand, BonePos(K, m_finger[2][0]), 0.55f);
+		radii[n++] = kPalmRadius;
+	}
+	for (int f = 1; f < kFingers; ++f)
+		if (m_finger[f][0] != BI_NONE)
+		{
+			probes[n] = BonePos(K, m_finger[f][0]);
+			radii[n++] = kRootRadius;
+		}
+	for (int i = 0; i < n; ++i)
+		to_item.transform_tiny(probes[i]);
+	Fvector push = {0.f, 0.f, 0.f}; // item space
+	for (int iteration = 0; iteration < 6; ++iteration)
+	{
+		float deepest = 0.f;
+		Fvector step = {0.f, 0.f, 0.f};
+		Hit hit;
+		for (int i = 0; i < n; ++i)
+		{
+			Fvector p;
+			p.add(probes[i], push);
+			if (Closest(p, kRange, hit) && radii[i] - hit.distance > deepest)
+			{
+				deepest = radii[i] - hit.distance;
+				step.mul(hit.normal, deepest);
+			}
+		}
+		if (deepest <= 0.f)
+			break;
+		push.add(step);
+	}
+	if (push.magnitude() > kMaxPush)
+		push.normalize().mul(kMaxPush);
+	Fmatrix from_item;
+	from_item.invert(to_item);
+	from_item.transform_dir(m_push, push);
+
+	// Fingers, on the pushed hand: each joint from the root opens just enough to keep its
+	// distal phalanges out of the weapon. Nothing closes.
 	for (int f = 0; f < kFingers; ++f)
 	{
 		if (m_finger[f][0] == BI_NONE || m_finger[f][1] == BI_NONE || m_finger[f][2] == BI_NONE)
 			continue;
-		Fvector P[4]; // joints and the finger tip, left model space
+		Fvector axis;
+		if (!FingerAxis(K, f, to_item, axis))
+			continue;
+		Fvector P[4];
 		for (int j = 0; j < kJoints; ++j)
-			P[j] = BonePos(K, m_finger[f][j]);
-		P[3].sub(P[2], P[1]).mul(m_p.tip_length).add(P[2]);
-
-		// Bend axis: the plane the finger already curls in; a straight finger bends toward the weapon.
-		Fvector proximal, distal, axis;
-		proximal.sub(P[1], P[0]);
-		distal.sub(P[3], P[1]);
-		axis.crossproduct(proximal, distal);
-		if (axis.magnitude() < 1e-6f)
-		{
-			Hit hit;
-			Fvector root;
-			to_item.transform_tiny(root, P[0]);
-			if (!Closest(root, m_p.range, hit))
-				continue;
-			Fvector toward = hit.normal;
-			toward.invert(); // into the weapon, item space
-			Fmatrix from_item;
-			from_item.invert(to_item);
-			from_item.transform_dir(toward);
-			axis.crossproduct(proximal, toward);
-			if (axis.magnitude() < 1e-6f)
-				continue;
-		}
-		axis.normalize();
+			P[j].add(BonePos(K, m_finger[f][j]), m_push);
+		P[3].sub(P[2], P[1]).mul(kTipLength).add(P[2]);
 
 		for (int j = 0; j < kJoints; ++j)
 		{
-			// Do the joint's distal phalanges (samples per phalanx, item space) go into the weapon at a trial angle?
-			auto blocked = [&](float angle, bool deep)
+			auto blocked = [&](float angle)
 			{
 				const Fmatrix turn = RotationAbout(P[j], axis, angle);
-				const int per = std::clamp(int(m_p.samples), 1, 4);
-				Fvector pts[12];
-				float radii[12];
-				int n = 0;
 				for (int k = j; k < 3; ++k)
-					for (int q = 1; q <= per; ++q)
+					for (int q = 1; q <= kSamples; ++q)
 					{
-						Fvector at;
-						at.lerp(P[k], P[k + 1], float(q) / per);
+						Fvector at, item;
+						at.lerp(P[k], P[k + 1], float(q) / kSamples);
 						turn.transform_tiny(at);
-						to_item.transform_tiny(pts[n], at);
-						radii[n++] = k == 2 && q == per ? m_p.tip_radius : m_p.finger_radius;
+						to_item.transform_tiny(item, at);
+						if (Inside(item, k == 2 && q == kSamples ? kTipRadius : kFingerRadius))
+							return true;
 					}
-				return Penetrates(pts, radii, n, deep);
+				return false;
 			};
-			// Boundary between a clear and a blocked angle, on the clear side.
-			auto boundary = [&](float clear, float block)
-			{
-				for (int i = 0; i < int(m_p.search_steps); ++i)
+			if (!blocked(0.f))
+				continue;
+			float clear = -kOpenLimit, block = 0.f;
+			if (!blocked(clear))
+				for (int i = 0; i < kSearchSteps; ++i)
 				{
 					const float mid = 0.5f * (clear + block);
-					(blocked(mid, false) ? block : clear) = mid;
+					(blocked(mid) ? block : clear) = mid;
 				}
-				return clear;
-			};
-
-			const bool scheduled = solve_finger < 0 || solve_finger == f;
-			const bool deep = m_p.deep > 0.f;
-			if (scheduled || (m_p.recheck > 0.f && blocked(m_curl[f][j] * weight, false)))
-			{
-				float target = 0.f;
-				if (blocked(0.f, deep))
-					target = blocked(-(m_p.open_limit * kDegToRad), deep) ? -(m_p.open_limit * kDegToRad) : boundary(-(m_p.open_limit * kDegToRad), 0.f);
-				else if (grasp && blocked((m_p.curl_limit * kDegToRad), false))
-					target = boundary(0.f, (m_p.curl_limit * kDegToRad));
-				// Hysteresis: small changes toward closing keep the old target, no finger flicker.
-				const float change = target - m_curl_target[f][j];
-				if (change < -m_p.open_hysteresis * kDegToRad || change > m_p.curl_hysteresis * kDegToRad || !scheduled)
-					m_curl_target[f][j] = target;
-				if (!scheduled)
-					m_curl[f][j] = std::min(m_curl[f][j], target); // it was going in: no easing back out
-			}
-
-			const float goal = m_curl_target[f][j];
-			m_curl[f][j] += (goal - m_curl[f][j]) * (goal < m_curl[f][j] ? open : close);
-			const float angle = m_curl[f][j] * weight;
-			if (_abs(angle) < 1e-5f)
-				continue;
-			const Fmatrix turn = RotationAbout(P[j], axis, angle);
-			for (u16 b : m_moves[f][j])
-				MoveBone(K, b, turn);
+			m_open[f][j] = clear;
+			const Fmatrix turn = RotationAbout(P[j], axis, clear);
 			for (int k = j + 1; k < 4; ++k)
 				turn.transform_tiny(P[k]);
 		}
@@ -416,20 +403,8 @@ void HudHandContact::Apply(player_hud& hud)
 		m_weight = std::min(m_target, m_weight + dt * m_speed);
 	else if (m_weight > m_target)
 		m_weight = std::max(m_target, m_weight - dt * m_speed);
-	const float weight = std::max(m_weight, m_drive);
-	const bool grasp = (m_weight > 0.f && m_grasp) || m_drive_grasp;
-	m_drive = 0.f;
-	m_drive_grasp = false;
-	if (weight > 0.f && m_effective <= 0.f)
-		m_solve_all = true; // search every finger right away when contact starts
-	m_effective = weight;
-	if (weight <= 0.f)
-	{
-		m_push.set(0.f, 0.f, 0.f);
-		std::fill(&m_curl[0][0], &m_curl[0][0] + kFingers * kJoints, 0.f);
-		std::fill(&m_curl_target[0][0], &m_curl_target[0][0] + kFingers * kJoints, 0.f);
+	if (m_weight <= 0.f)
 		return;
-	}
 
 	attachable_hud_item* item = hud.attached_item(0);
 	if (!item || !item->m_model || hud.attached_item(1) || !hud.m_model_2)
@@ -437,75 +412,52 @@ void HudHandContact::Apply(player_hud& hud)
 	IKinematics* K = hud.m_model_2->dcast_PKinematics();
 	if (!K || !ResolveBones(K))
 		return;
-	if (m_rebuild || item->m_model != m_weapon_model)
+	if (item->m_model != m_weapon_model)
+	{
 		BuildGeometry(item->m_model);
+		m_solve = true;
+	}
 	if (m_tris.empty())
 		return;
 
-	// Left model space <-> weapon model space.
-	Fmatrix item_inv, to_item, from_item;
-	item_inv.invert(item->m_item_transform);
-	to_item.mul_43(item_inv, hud.m_transform_2);
-	from_item.invert(to_item);
-
-	// Hand: push the palm and the finger roots out of the weapon.
-	Fvector probes[5];
-	float radii[5];
-	const Fvector hand = BonePos(K, m_hand);
-	int n = 0;
-	if (m_finger[2][0] != BI_NONE)
+	if (m_solve)
 	{
-		probes[n].lerp(hand, BonePos(K, m_finger[2][0]), 0.55f);
-		radii[n++] = m_p.palm_radius;
+		Fmatrix item_inv, to_item;
+		item_inv.invert(item->m_item_transform);
+		to_item.mul_43(item_inv, hud.m_transform_2);
+		Solve(K, to_item);
+		m_solve = false;
 	}
-	for (int f = 1; f < kFingers; ++f)
-		if (m_finger[f][0] != BI_NONE)
-		{
-			probes[n] = BonePos(K, m_finger[f][0]);
-			radii[n++] = m_p.base_radius;
-		}
-	for (int i = 0; i < n; ++i)
-		to_item.transform_tiny(probes[i]);
 
-	Fvector push = {0.f, 0.f, 0.f}; // item space
-	for (int iteration = 0; iteration < 3; ++iteration)
-	{
-		float deepest = 0.f;
-		Fvector step = {0.f, 0.f, 0.f};
-		Hit hit;
-		for (int i = 0; i < n; ++i)
-		{
-			Fvector p;
-			p.add(probes[i], push);
-			if (Closest(p, m_p.range, hit) && radii[i] - hit.distance > deepest)
-			{
-				deepest = radii[i] - hit.distance;
-				step.mul(hit.normal, deepest);
-			}
-		}
-		if (deepest <= 0.f)
-			break;
-		push.add(step);
-	}
-	if (push.magnitude() > m_p.max_push)
-		push.normalize().mul(m_p.max_push);
-	from_item.transform_dir(push);
-	// With instant_push a deeper push is taken at once (no sinking in), a smaller one eases back.
-	if (m_p.instant_push > 0.f && push.square_magnitude() >= m_push.square_magnitude())
-		m_push = push;
-	else
-		m_push.lerp(m_push, push, 1.f - std::exp(-m_p.push_response * dt));
-
+	const float w = MinJerk(m_weight);
 	Fvector shift;
-	shift.mul(m_push, weight);
+	shift.mul(m_push, w);
 	if (shift.square_magnitude() > 1e-10f)
 	{
 		Fvector target;
-		target.add(hand, shift);
+		target.add(BonePos(K, m_hand), shift);
 		Fmatrix delta;
 		delta.translate(shift);
 		Bodycam::SolveHudArm(K, m_upperarm, m_forearm, m_twist, m_hand, target, BonePos(K, m_forearm), delta);
 	}
 
-	SolveFingers(K, to_item, dt, weight, grasp);
+	Fmatrix item_inv, to_item;
+	item_inv.invert(item->m_item_transform);
+	to_item.mul_43(item_inv, hud.m_transform_2);
+	for (int f = 0; f < kFingers; ++f)
+	{
+		Fvector axis;
+		bool have_axis = false;
+		for (int j = 0; j < kJoints; ++j)
+		{
+			const float angle = m_open[f][j] * w;
+			if (_abs(angle) < 1e-5f)
+				continue;
+			if (!have_axis && !(have_axis = FingerAxis(K, f, to_item, axis)))
+				break;
+			const Fmatrix turn = RotationAbout(BonePos(K, m_finger[f][j]), axis, angle);
+			for (u16 b : m_moves[f][j])
+				MoveBone(K, b, turn);
+		}
+	}
 }

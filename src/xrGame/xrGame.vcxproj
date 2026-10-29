@@ -568,7 +568,6 @@
     <ClInclude Include="first_person_transform.h" />
     <ClInclude Include="bodycam_hud_arms.h" />
     <ClInclude Include="hud_hand_contact.h" />
-    <ClInclude Include="hud_pose_clips.h" />
     <ClInclude Include="bodycam_math.h" />
     <ClInclude Include="bodycam_mouse_input.h" />
     <ClInclude Include="bodycam_movement_response.h" />
@@ -2851,7 +2850,6 @@
     </ClCompile>
     <ClCompile Include="bodycam_hud_arms.cpp" />
     <ClCompile Include="hud_hand_contact.cpp" />
-    <ClCompile Include="hud_pose_clips.cpp" />
     <ClCompile Include="bodycam_console.cpp" />
     <ClCompile Include="bodycam_math.cpp" />
     <ClCompile Include="bodycam_mouse_input.cpp">
