@@ -3032,7 +3032,7 @@ void CWeapon::UpdateHudAdditional(Fmatrix& trans)
 		// Sprint pose: while sprinting the weapon holds its authored lowered pose, but is never lowered
 		// (no safemode), so nothing waits on raising it when the sprint ends.
 		{
-			const bool sprint = idx == 0 && (pActor->get_state() & ACTOR_DEFS::mcSprint) && m_bCanBeLowered && !IsZoomed();
+			const bool sprint = idx == 0 && (pActor->MovingState() & ACTOR_DEFS::mcSprint) && m_bCanBeLowered && !IsZoomed();
 			const float blend_time = sprint ? .35f : .25f;
 			m_sprint_pose = clampr(m_sprint_pose + (sprint ? 1.f : -1.f) * Device.fTimeDelta / blend_time, 0.f, 1.f);
 			if (idx == 0 && m_sprint_pose > 0.f)
