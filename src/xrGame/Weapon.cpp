@@ -3029,6 +3029,23 @@ void CWeapon::UpdateHudAdditional(Fmatrix& trans)
 			offset_factor = std::min(Device.fTimeDelta / 0.2f, 0.4f);
 		}
 
+		// Sprint pose: while sprinting the weapon holds its authored lowered pose, but is never lowered
+		// (no safemode), so nothing waits on raising it when the sprint ends.
+		{
+			const bool sprint = idx == 0 && (pActor->get_state() & ACTOR_DEFS::mcSprint) && m_bCanBeLowered && !IsZoomed();
+			const float blend_time = sprint ? .35f : .25f;
+			m_sprint_pose = clampr(m_sprint_pose + (sprint ? 1.f : -1.f) * Device.fTimeDelta / blend_time, 0.f, 1.f);
+			if (idx == 0 && m_sprint_pose > 0.f)
+			{
+				const float w = m_sprint_pose * m_sprint_pose * m_sprint_pose * (10.f + m_sprint_pose * (-15.f + 6.f * m_sprint_pose));
+				Fvector lowered_offs, lowered_rot, lowered_aim;
+				ResolveHudOffsetTarget(4, lowered_offs, lowered_rot, lowered_aim, true);
+				curr_offs.lerp(Fvector(curr_offs), lowered_offs, w);
+				curr_rot.lerp(Fvector(curr_rot), lowered_rot, w);
+				offset_factor = .4f; // the weight is already eased: follow it (2.5x factor in InterpolateOffset)
+			}
+		}
+
 		InterpolateOffset(m_hud_offset[0], curr_offs, offset_factor);
 		InterpolateOffset(m_hud_offset[1], curr_rot, offset_factor);
 		InterpolateOffset(m_hud_aim_rot, curr_aim_rot, factor);
