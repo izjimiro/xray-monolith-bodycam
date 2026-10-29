@@ -3034,7 +3034,12 @@ void CWeapon::UpdateHudAdditional(Fmatrix& trans)
 			static const float lower_time = _max(READ_IF_EXISTS(pSettings, r_float, "sprint_pose", "lower_time", .35f), .01f);
 			static const float raise_time = _max(READ_IF_EXISTS(pSettings, r_float, "sprint_pose", "raise_time", .25f), .01f);
 			const bool sprint = idx == 0 && GetState() == eIdle && m_bCanBeLowered && (pActor->MovingState() & ACTOR_DEFS::mcSprint);
-			m_sprint_pose = clampr(m_sprint_pose + (sprint ? Device.fTimeDelta / lower_time : -Device.fTimeDelta / raise_time), 0.f, 1.f);
+			// A one-shot script HUD animation (play_hud_anm, e.g. a misfire check) holds the pose where it is.
+			bool one_shot = false;
+			for (script_layer* layer : g_player_hud->m_script_layers)
+				one_shot = one_shot || (layer && layer->anm && !layer->anm->bLoop && (layer->active || layer->blend_amount > 0.f));
+			if (!one_shot)
+				m_sprint_pose = clampr(m_sprint_pose + (sprint ? Device.fTimeDelta / lower_time : -Device.fTimeDelta / raise_time), 0.f, 1.f);
 			if (idx == 0 && m_sprint_pose > 0.f)
 			{
 				const float t = m_sprint_pose, w = t * t * t * (10.f + t * (-15.f + 6.f * t)); // min-jerk ease
