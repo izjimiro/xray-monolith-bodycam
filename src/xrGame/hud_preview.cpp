@@ -240,8 +240,8 @@ Fmatrix HudPreview::BoneTransform(LPCSTR id, LPCSTR bone)
 	{
 		// parent * inverse(parent bind) * bone bind
 		Fmatrix ip, rel;
-		ip.invert(k->LL_GetData(p).get_bind_transform());
-		rel.mul_43(ip, k->LL_GetData(b).get_bind_transform());
+		ip.invert(k->LL_GetData(p).bind_transform);
+		rel.mul_43(ip, k->LL_GetData(b).bind_transform);
 		local.mul_43(k->LL_GetTransform(p), rel);
 	}
 	Fmatrix out;
