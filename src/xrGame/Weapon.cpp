@@ -3034,11 +3034,16 @@ void CWeapon::UpdateHudAdditional(Fmatrix& trans)
 			static const float lower_delay = READ_IF_EXISTS(pSettings, r_float, "sprint_pose", "lower_delay", 0.f);
 			static const float lower_time = _max(READ_IF_EXISTS(pSettings, r_float, "sprint_pose", "lower_time", .35f), .01f);
 			static const float raise_time = _max(READ_IF_EXISTS(pSettings, r_float, "sprint_pose", "raise_time", .25f), .01f);
-			// A one-shot script HUD animation (play_hud_anm, e.g. a misfire check) counts as an action, like a reload.
-			bool one_shot = false;
-			for (script_layer* layer : g_player_hud->m_script_layers)
-				one_shot = one_shot || (layer && layer->anm && !layer->anm->bLoop && (layer->active || layer->blend_amount > 0.f));
-			const bool sprint = idx == 0 && GetState() == eIdle && !one_shot && m_bCanBeLowered && (pActor->MovingState() & ACTOR_DEFS::mcSprint);
+			// A script HUD animation named [sprint_pose] action_anm* (e.g. the misfire check) counts as an action,
+			// like a reload. Checked only while the pose could apply.
+			static const shared_str action_anm = READ_IF_EXISTS(pSettings, r_string, "sprint_pose", "action_anm", "misfire_check\\");
+			const auto action = [&] {
+				for (script_layer* l : g_player_hud->m_script_layers)
+					if (l && (l->active || l->blend_amount > 0.f) && !strncmp(l->m_name.c_str(), action_anm.c_str(), action_anm.size()))
+						return true;
+				return false;
+			};
+			const bool sprint = idx == 0 && GetState() == eIdle && m_bCanBeLowered && (pActor->MovingState() & ACTOR_DEFS::mcSprint) && !action();
 			m_sprint_time = sprint ? m_sprint_time + Device.fTimeDelta : 0.f; // lowering starts after lower_delay of sprint
 			m_sprint_pose = clampr(m_sprint_pose + (sprint && m_sprint_time >= lower_delay ? Device.fTimeDelta / lower_time : -Device.fTimeDelta / raise_time), 0.f, 1.f);
 			if (idx == 0 && m_sprint_pose > 0.f)
