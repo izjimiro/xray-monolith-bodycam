@@ -20,8 +20,9 @@ namespace HudPreview
 	void SetBoneVisible(LPCSTR id, LPCSTR bone, bool visible);
 	void CopyBonesVisibility(LPCSTR id, CScriptGameObject* obj); // by bone names, from the object's HUD model (else world)
 	bool Play(LPCSTR id, LPCSTR motion, bool mix);      // looped cycle on an animated model
-	void FollowPose(LPCSTR id, CScriptGameObject* obj); // every frame copy bone poses (by name) from the object's
-	                                                    // HUD model (else world model); nil stops
+	// bone poses (by name) from the object's HUD model (else world model): once - captured now and kept,
+	// else copied every frame (live); nil obj - back to the model's own pose
+	void FollowPose(LPCSTR id, CScriptGameObject* obj, bool once);
 	void HideHands(bool hide);
 	bool HandsHidden();
 
