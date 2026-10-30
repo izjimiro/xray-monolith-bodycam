@@ -1391,7 +1391,14 @@ void CWeapon::save(NET_Packet& output_packet)
 {
 	inherited::save(output_packet);
 	save_data(iAmmoElapsed, output_packet);
-	save_data(m_cur_scope, output_packet);
+	// MAS: the scope is saved by section name (marker 0xFF + name): the list index shifts when the list changes
+	if (m_modular_attachments)
+	{
+		save_data(u8(0xFF), output_packet);
+		output_packet.w_stringZ(HasValidScopeIndex() ? m_scopes[m_cur_scope].c_str() : "");
+	}
+	else
+		save_data(m_cur_scope, output_packet);
 	save_data(m_flagsAddOnState, output_packet);
 	save_data(m_ammoType, output_packet);
 	save_data(m_zoom_params.m_bIsZoomModeNow, output_packet);
@@ -1403,6 +1410,20 @@ void CWeapon::load(IReader& input_packet)
 	inherited::load(input_packet);
 	load_data(iAmmoElapsed, input_packet);
 	load_data(m_cur_scope, input_packet);
+	if (m_cur_scope == 0xFF) // MAS scope saved by name; old saves keep the index
+	{
+		xr_string name;
+		input_packet.r_stringZ(name);
+		m_cur_scope = u8(-1); // not in the list any more: ValidateModularScopeState detaches it
+		for (u32 i = 0; i < m_scopes.size() && i < 0xFF; ++i)
+			if (name == m_scopes[i].c_str())
+			{
+				m_cur_scope = u8(i);
+				break;
+			}
+		if (name.empty())
+			m_cur_scope = 0;
+	}
 	load_data(m_flagsAddOnState, input_packet);
 	ValidateModularScopeState("load", true);
 	UpdateAddonsVisibility();
