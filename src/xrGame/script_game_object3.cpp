@@ -2516,6 +2516,78 @@ bool CScriptGameObject::is_bone_visible(LPCSTR bone_name, bool bHud)
 	return k && k->LL_GetBoneVisible(id);
 }
 
+// ---- MAS scope API ----
+LPCSTR CScriptGameObject::Weapon_ScopeList()
+{
+	static xr_string out;
+	out.clear();
+	if (CWeapon* w = smart_cast<CWeapon*>(&object()))
+		for (const shared_str& s : w->m_scopes)
+		{
+			if (!out.empty()) out += ",";
+			out += s.c_str();
+		}
+	return out.c_str();
+}
+
+LPCSTR CScriptGameObject::Weapon_ScopeSection()
+{
+	CWeapon* w = smart_cast<CWeapon*>(&object());
+	return w && w->m_modular_attachments && w->IsScopeAttached() && w->HasValidScopeIndex() ? w->m_scopes[w->m_cur_scope].c_str() : "";
+}
+
+// select the modular scope by section (e.g. to restore it after the list changed); rebuilds the HUD scope
+bool CScriptGameObject::Weapon_SetScope(LPCSTR section)
+{
+	CWeapon* w = smart_cast<CWeapon*>(&object());
+	if (!w || !w->m_modular_attachments)
+		return false;
+	for (u32 i = 0; i < w->m_scopes.size(); ++i)
+		if (w->m_scopes[i] == section)
+		{
+			if (!w->SetCurrentScopeIndex(u8(i), "script"))
+				return false;
+			w->ValidateModularScopeState("script", true);
+			if (CWeaponMagazined* wm = smart_cast<CWeaponMagazined*>(w))
+				wm->LoadScopeKoeffs();
+			return true;
+		}
+	return false;
+}
+
+void CScriptGameObject::Weapon_SetScopeOffset(const Fvector& pos, const Fvector& rot_deg)
+{
+	if (CWeapon* w = smart_cast<CWeapon*>(&object()))
+	{
+		w->m_scope_offset_pos = pos;
+		w->m_scope_offset_rot.set(deg2rad(rot_deg.x), deg2rad(rot_deg.y), deg2rad(rot_deg.z));
+	}
+}
+
+Fvector CScriptGameObject::Weapon_ScopeOffsetPos()
+{
+	CWeapon* w = smart_cast<CWeapon*>(&object());
+	return w ? w->m_scope_offset_pos : Fvector().set(0.f, 0.f, 0.f);
+}
+
+Fvector CScriptGameObject::Weapon_ScopeOffsetRot()
+{
+	CWeapon* w = smart_cast<CWeapon*>(&object());
+	return w ? Fvector().set(rad2deg(w->m_scope_offset_rot.x), rad2deg(w->m_scope_offset_rot.y), rad2deg(w->m_scope_offset_rot.z)) : Fvector().set(0.f, 0.f, 0.f);
+}
+
+// HUD-space transform of the scope mount (attach_mount_hud_offset, without the script offset) of this weapon
+// while it is in the hands; identity otherwise. Points from it go to game.world2ui(p, true).
+Fmatrix CScriptGameObject::Weapon_ScopeMountHud()
+{
+	Fmatrix m;
+	m.identity();
+	attachable_hud_item* item = g_player_hud ? g_player_hud->attached_item(0) : nullptr;
+	if (item && item->m_parent_hud_item && item->m_parent_hud_item->object().ID() == object().ID())
+		item->scope_mount_transform(m);
+	return m;
+}
+
 float CScriptGameObject::GetLuminocityHemi()
 {
 	CObject* e = smart_cast<CObject*>(&object());

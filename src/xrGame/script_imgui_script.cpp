@@ -5,6 +5,18 @@
 #include "imgui/imgui_internal.h"
 
 using namespace luabind;
+// Overlay drawing on the foreground draw list (screen pixels, color from ColorU32 or 0xAABBGGRR)
+static ImVec2 v2(const Fvector2& p) { return ImVec2(p.x, p.y); }
+static u32 ImGui_ColorU32(float r, float g, float b, float a) { return ImGui::GetColorU32(ImVec4(r, g, b, a)); }
+static void ImGui_DrawLine(Fvector2 a, Fvector2 b, u32 col, float thickness) { ImGui::GetForegroundDrawList()->AddLine(v2(a), v2(b), col, thickness); }
+static void ImGui_DrawRect(Fvector2 a, Fvector2 b, u32 col, float thickness) { ImGui::GetForegroundDrawList()->AddRect(v2(a), v2(b), col, 0.f, 0, thickness); }
+static void ImGui_DrawRectFilled(Fvector2 a, Fvector2 b, u32 col) { ImGui::GetForegroundDrawList()->AddRectFilled(v2(a), v2(b), col); }
+static void ImGui_DrawQuadFilled(Fvector2 a, Fvector2 b, Fvector2 c, Fvector2 d, u32 col) { ImGui::GetForegroundDrawList()->AddQuadFilled(v2(a), v2(b), v2(c), v2(d), col); }
+static void ImGui_DrawCircle(Fvector2 c, float r, u32 col, float thickness) { ImGui::GetForegroundDrawList()->AddCircle(v2(c), r, col, 0, thickness); }
+static void ImGui_DrawCircleFilled(Fvector2 c, float r, u32 col) { ImGui::GetForegroundDrawList()->AddCircleFilled(v2(c), r, col); }
+static void ImGui_DrawText(Fvector2 p, u32 col, LPCSTR text) { ImGui::GetForegroundDrawList()->AddText(v2(p), col, text); }
+static Fvector2 ImGui_GetDisplaySize() { return Fvector2().set(ImGui::GetIO().DisplaySize.x, ImGui::GetIO().DisplaySize.y); }
+
 #pragma optimize("s",on)
 void ScriptImGui::script_register(::lua_State* L)
 {
@@ -294,6 +306,15 @@ void ScriptImGui::script_register(::lua_State* L)
 		def("IsMousePosValid", &ImGui_IsMousePosValid),
 		def("IsAnyMouseDown", &ImGui::IsAnyMouseDown),
 		def("GetMousePos", &ImGui_GetMousePos),
+		def("GetDisplaySize", &ImGui_GetDisplaySize),
+		def("ColorU32", &ImGui_ColorU32),
+		def("DrawLine", &ImGui_DrawLine),
+		def("DrawRect", &ImGui_DrawRect),
+		def("DrawRectFilled", &ImGui_DrawRectFilled),
+		def("DrawQuadFilled", &ImGui_DrawQuadFilled),
+		def("DrawCircle", &ImGui_DrawCircle),
+		def("DrawCircleFilled", &ImGui_DrawCircleFilled),
+		def("DrawText", &ImGui_DrawText),
 		def("GetMousePosOnOpeningCurrentPopup", &ImGui_GetMousePosOnOpeningCurrentPopup),
 		def("IsMouseDragging", &ImGui::IsMouseDragging),
 		def("GetMouseDragDelta", &ImGui_GetMouseDragDelta),

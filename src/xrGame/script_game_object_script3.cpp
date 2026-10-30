@@ -553,6 +553,13 @@ class_<CScriptGameObject> script_register_game_object2(class_<CScriptGameObject>
 		//For Weapons
 		.def("weapon_addon_attach", SAFE_WRAP(&CScriptGameObject::Weapon_AddonAttach))
 		.def("weapon_addon_detach", SAFE_WRAP(&CScriptGameObject::Weapon_AddonDetach))
+		.def("weapon_scope_list", &CScriptGameObject::Weapon_ScopeList)
+		.def("weapon_scope_section", &CScriptGameObject::Weapon_ScopeSection)
+		.def("weapon_set_scope", &CScriptGameObject::Weapon_SetScope)
+		.def("weapon_set_scope_offset", &CScriptGameObject::Weapon_SetScopeOffset)
+		.def("weapon_scope_offset_pos", &CScriptGameObject::Weapon_ScopeOffsetPos)
+		.def("weapon_scope_offset_rot", &CScriptGameObject::Weapon_ScopeOffsetRot)
+		.def("weapon_scope_mount_hud", &CScriptGameObject::Weapon_ScopeMountHud)
 		//For Weapon & Outfit
 		.def("install_upgrade", SAFE_WRAP(&CScriptGameObject::InstallUpgrade))
 		.def("has_upgrade", SAFE_WRAP(&CScriptGameObject::HasUpgrade))

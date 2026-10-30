@@ -327,6 +327,33 @@ bool CWeapon::SetCurrentScopeIndex(u8 index, LPCSTR source)
 	return true;
 }
 
+// MAS scope list. [modular_attachments] scope_list_func = <script.function>(weapon_section, section) -> "scope1,scope2,...":
+// the list comes from scripts (e.g. a rail compatibility system); without it, or on an empty result,
+// from the weapon's modular_scope_group as before.
+void CWeapon::LoadModularScopes(LPCSTR section)
+{
+	m_scopes.clear();
+	xr_string scopes;
+	static const shared_str func = READ_IF_EXISTS(pSettings, r_string, "modular_attachments", "scope_list_func", "");
+	::luabind::functor<LPCSTR> list;
+	if (func.size() && ai().script_engine().functor(func.c_str(), list))
+	{
+		LPCSTR r = list(cNameSect().c_str(), section);
+		scopes = r ? r : "";
+	}
+	if (scopes.empty())
+	{
+		LPCSTR group = READ_IF_EXISTS(pSettings, r_string, section, "modular_scope_group", nullptr);
+		scopes = group ? READ_IF_EXISTS(pSettings, r_string, group, "scopes", "") : "";
+	}
+	for (int i = 0, count = _GetItemCount(scopes.c_str()); i < count; ++i)
+	{
+		string128 scope;
+		_GetItem(scopes.c_str(), i, scope);
+		m_scopes.push_back(scope);
+	}
+}
+
 bool CWeapon::ValidateModularScopeState(LPCSTR source, bool rebuild_item)
 {
 	if (!m_modular_attachments || m_eScopeStatus != ALife::eAddonAttachable)
@@ -990,17 +1017,7 @@ void CWeapon::Load(LPCSTR section)
 	if (m_eScopeStatus == ALife::eAddonAttachable)
 	{
 		if (m_modular_attachments)
-		{
-			LPCSTR scope_group = pSettings->r_string(section, "modular_scope_group");
-			LPCSTR scopes = pSettings->r_string(scope_group, "scopes");
-
-			for (int i = 0, count = _GetItemCount(scopes); i < count; ++i)
-			{
-				string128 scope;
-				_GetItem(scopes, i, scope);
-				m_scopes.push_back(scope);
-			}
-		}
+			LoadModularScopes(section);
 		else if (pSettings->line_exist(section, "scopes_sect"))
 		{
 			LPCSTR str = pSettings->r_string(section, "scopes_sect");

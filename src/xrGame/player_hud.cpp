@@ -260,29 +260,35 @@ void attachable_hud_item::update_attach_offset()
 	m_attach_offset.translate_over(m_parent->m_adjust_mode ? m_parent->m_adjust_obj[0] : m_measures.m_item_attach[0]);
 }
 
+// rotation X, then Y, then Z (as attach_mount_hud_offset_rot), then translation
+static Fmatrix xyz_offset(const Fvector& pos, const Fvector& rot)
+{
+	Fmatrix m, r;
+	m.rotateX(rot.x);
+	m.mulA_43(r.rotateY(rot.y));
+	m.mulA_43(r.rotateZ(rot.z));
+	m.translate_over(pos);
+	return m;
+}
+
+// HUD transform of this item's scope mount: item transform * attach_mount_hud_offset
+void attachable_hud_item::scope_mount_transform(Fmatrix& out)
+{
+	out.mul_43(m_item_transform, xyz_offset(attach_mount_offset_pos(), attach_mount_offset_rot()));
+}
+
 void attachable_hud_item::update(bool bForce)
 {
 	if (!bForce && m_upd_firedeps_frame == Device.dwFrame) return;
 	update_attach_offset();
 
 	if (m_attach_place_idx == SCOPE_ATTACH_IDX) {
-		m_item_transform.set(m_parent->attached_item(0)->m_item_transform);
-
-		Fmatrix hud_rotation;
-		hud_rotation.identity();
-		hud_rotation.rotateX(m_parent->attached_item(0)->attach_mount_offset_rot().x);
-
-		Fmatrix hud_rotation_y;
-		hud_rotation_y.identity();
-		hud_rotation_y.rotateY(m_parent->attached_item(0)->attach_mount_offset_rot().y);
-		hud_rotation.mulA_43(hud_rotation_y);
-
-		hud_rotation_y.identity();
-		hud_rotation_y.rotateZ(m_parent->attached_item(0)->attach_mount_offset_rot().z);
-		hud_rotation.mulA_43(hud_rotation_y);
-
-		hud_rotation.translate_over(m_parent->attached_item(0)->attach_mount_offset_pos());
-		m_item_transform.mulB_43(hud_rotation);
+		attachable_hud_item* weapon_item = m_parent->attached_item(0);
+		weapon_item->scope_mount_transform(m_item_transform);
+		// script offset in the mount frame (rail position etc.), CWeapon::m_scope_offset_*
+		CWeapon* wpn = smart_cast<CWeapon*>(weapon_item->m_parent_hud_item);
+		if (wpn && (!wpn->m_scope_offset_pos.similar(Fvector().set(0.f, 0.f, 0.f), EPS_L) || !wpn->m_scope_offset_rot.similar(Fvector().set(0.f, 0.f, 0.f), EPS_L)))
+			m_item_transform.mulB_43(xyz_offset(wpn->m_scope_offset_pos, wpn->m_scope_offset_rot));
 	}
 	else {
 		m_parent->calc_transform(m_attach_place_idx, m_attach_offset, m_item_transform, m_measures.m_bLeadGunLeftHand);

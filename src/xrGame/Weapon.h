@@ -1136,6 +1136,9 @@ public:
 	bool HasValidScopeIndex() const { return m_cur_scope < m_scopes.size(); }
 	bool SetCurrentScopeIndex(u8 index, LPCSTR source);
 	bool ValidateModularScopeState(LPCSTR source, bool rebuild_item);
+	void LoadModularScopes(LPCSTR section);
+	// Script offset of the MAS scope in the mount frame (pos m, rot rad X, Y, Z), on top of attach_mount
+	Fvector m_scope_offset_pos{}, m_scope_offset_rot{};
 
 	bool m_altAimPos;
 	u8 m_zoomtype;

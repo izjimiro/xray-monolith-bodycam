@@ -1096,6 +1096,14 @@ public:
 	//Scope
 	void Weapon_SetCurrentScope(u8 type);
 	u8 Weapon_GetCurrentScope();
+	// MAS scope API for scripts (rail mounts etc.)
+	LPCSTR Weapon_ScopeList();
+	LPCSTR Weapon_ScopeSection();
+	bool Weapon_SetScope(LPCSTR section);
+	void Weapon_SetScopeOffset(const Fvector& pos, const Fvector& rot_deg);
+	Fvector Weapon_ScopeOffsetPos();
+	Fvector Weapon_ScopeOffsetRot();
+	Fmatrix Weapon_ScopeMountHud();
 
 	//CWeaponAmmo
 	u16 AmmoGetCount();

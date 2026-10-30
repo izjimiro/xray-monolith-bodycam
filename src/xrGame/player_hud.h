@@ -386,6 +386,7 @@ struct attachable_hud_item
 	Fvector& attach_base_offset_rot();
 	Fvector& attach_mount_offset_pos();
 	Fvector& attach_mount_offset_rot();
+	void scope_mount_transform(Fmatrix& out);
 	float attach_scale();
 
 	//props
