@@ -338,8 +338,15 @@ void CWeapon::LoadModularScopes(LPCSTR section)
 	::luabind::functor<LPCSTR> list;
 	if (func.size() && ai().script_engine().functor(func.c_str(), list))
 	{
-		LPCSTR r = list(cNameSect().c_str(), section);
-		scopes = r ? r : "";
+		try
+		{
+			LPCSTR r = list(cNameSect().c_str(), section);
+			scopes = r ? r : "";
+		}
+		catch (...) // a script error must not break weapon loading: the MAS group below
+		{
+			Msg("! [MAS-SCOPE] %s(%s) failed, using modular_scope_group", func.c_str(), cNameSect_str());
+		}
 	}
 	if (scopes.empty())
 	{

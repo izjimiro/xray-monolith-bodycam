@@ -15,8 +15,7 @@ namespace
 		IRenderVisual* visual = nullptr;
 		shared_str parent;
 		Fmatrix local = Fidentity;  // root: relative to the camera; child: offset from the parent
-		Fmatrix world = Fidentity;
-		u32 frame = u32(-1);
+		Fmatrix world = Fidentity; // last resolve(): what the HUD pass draws
 		u16 pose_src = u16(-1); // FollowPose live: object id and part
 		shared_str pose_part;
 		struct Bone { u16 id; Fmatrix xf, render_xf; };
@@ -94,16 +93,12 @@ namespace
 		return m;
 	}
 
+	// world = parent world (or the HUD camera) * local; computed fresh each call (a few nodes, shallow chains),
+	// so a transform changed by a script is seen by its children at once
 	const Fmatrix& resolve(Node* n, int depth = 0)
 	{
-		if (n->frame == Device.dwFrame)
-			return n->world;
-		n->frame = Device.dwFrame;
 		Node* p = n->parent.size() && depth < 16 ? find(n->parent.c_str()) : nullptr;
-		if (p)
-			n->world.mul_43(resolve(p, depth + 1), n->local);
-		else
-			n->world.mul_43(camera, n->local);
+		n->world.mul_43(p ? resolve(p, depth + 1) : camera, n->local);
 		return n->world;
 	}
 }
@@ -136,7 +131,8 @@ bool HudPreview::Add(LPCSTR id, LPCSTR visual)
 	else
 		n = xr_new<Node>();
 	n->visual = v;
-	n->frame = u32(-1);
+	n->pose.clear(); // bone ids of the previous model
+	n->pose_src = u16(-1);
 	return true;
 }
 
@@ -182,7 +178,6 @@ void HudPreview::SetTransform(LPCSTR id, const Fmatrix& m)
 	{
 		n->parent = nullptr;
 		n->local = m;
-		n->frame = u32(-1);
 	}
 }
 
@@ -193,7 +188,6 @@ void HudPreview::Attach(LPCSTR id, LPCSTR parent, const Fvector& pos, const Fvec
 	{
 		n->parent = parent;
 		n->local = xyz(pos, rot);
-		n->frame = u32(-1);
 	}
 }
 
@@ -211,10 +205,7 @@ Fmatrix HudPreview::Transform(LPCSTR id)
 {
 	xrCriticalSectionGuard g(lock);
 	Node* n = find(id);
-	if (!n)
-		return Fidentity;
-	n->frame = u32(-1);
-	return resolve(n);
+	return n ? resolve(n) : Fidentity;
 }
 
 bool HudPreview::HasBone(LPCSTR id, LPCSTR bone)
@@ -232,7 +223,6 @@ Fmatrix HudPreview::BoneTransform(LPCSTR id, LPCSTR bone)
 	const u16 b = k ? k->LL_BoneID(bone) : BI_NONE;
 	if (b == BI_NONE)
 		return Fidentity;
-	n->frame = u32(-1);
 	const Fmatrix world = resolve(n);
 	Fmatrix local = k->LL_GetTransform(b);
 	const u16 p = k->LL_GetData(b).GetParentID();
@@ -304,18 +294,20 @@ void HudPreview::FollowPose(LPCSTR id, CScriptGameObject* obj, bool once, LPCSTR
 }
 
 void HudPreview::HideHands(bool hide) { hide_hands = hide; }
-bool HudPreview::HandsHidden() { return hide_hands && !nodes.empty(); }
+bool HudPreview::HandsHidden()
+{
+	xrCriticalSectionGuard g(lock);
+	return hide_hands && !nodes.empty();
+}
 
 void HudPreview::Update(const Fmatrix& hud_camera)
 {
 	xrCriticalSectionGuard g(lock);
 	camera = hud_camera;
 	for (auto& it : nodes)
-		it.second->frame = u32(-1);
-	for (auto& it : nodes)
 	{
 		Node* n = it.second;
-		resolve(n); // parents first, through resolve()
+		resolve(n);
 		if (IKinematicsAnimated* ka = n->visual ? n->visual->dcast_PKinematicsAnimated() : nullptr)
 			ka->UpdateTracks();
 		if (IKinematics* k = kinematics(n))

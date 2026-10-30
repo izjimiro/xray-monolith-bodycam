@@ -288,7 +288,7 @@ void attachable_hud_item::update(bool bForce)
 		weapon_item->scope_mount_transform(m_item_transform);
 		// script offset in the mount frame (rail position etc.), CWeapon::m_scope_offset_*
 		CWeapon* wpn = smart_cast<CWeapon*>(weapon_item->m_parent_hud_item);
-		if (wpn && (!wpn->m_scope_offset_pos.similar(Fvector().set(0.f, 0.f, 0.f), EPS_L) || !wpn->m_scope_offset_rot.similar(Fvector().set(0.f, 0.f, 0.f), EPS_L)))
+		if (wpn && (wpn->m_scope_offset_pos.square_magnitude() > EPS_S || wpn->m_scope_offset_rot.square_magnitude() > EPS_S))
 			m_item_transform.mulB_43(xyz_offset(wpn->m_scope_offset_pos, wpn->m_scope_offset_rot));
 	}
 	else {
