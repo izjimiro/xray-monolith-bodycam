@@ -9707,6 +9707,9 @@
     <ClCompile Include="player_hud.cpp">
       <Filter>Core\Client\Objects\items &amp; weapons\HudItem</Filter>
     </ClCompile>
+    <ClCompile Include="hud_preview.cpp">
+      <Filter>Core\Client\Objects\items &amp; weapons\HudItem</Filter>
+    </ClCompile>
     <ClCompile Include="player_hud_tune.cpp">
       <Filter>Core\Client\Objects\items &amp; weapons\HudItem</Filter>
     </ClCompile>

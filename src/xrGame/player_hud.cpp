@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "player_hud.h"
+#include "hud_preview.h"
 #include "HudItem.h"
 #include "ui_base.h"
 #include "actor.h"
@@ -848,6 +849,7 @@ player_hud::~player_hud()
 	delete_data(m_movement_layers);
 	delete_data(m_bone_callback_params);
 	delete_data(m_script_bones);
+	HudPreview::Clear();
 }
 
 void player_hud::FingerCallback(CBoneInstance* B)
@@ -1042,6 +1044,9 @@ void player_hud::render_item_ui()
 
 void player_hud::render_hud(IDSGraphManager* DM)
 {
+	HudPreview::Render(DM);
+	if (HudPreview::HandsHidden())
+		return;
 	bool b_r0 = ((m_attached_items[0] && m_attached_items[0]->need_renderable()) || script_anim_part == 0 || script_anim_part == 2);
 	bool b_r1 = ((m_attached_items[1] && m_attached_items[1]->need_renderable()) || script_anim_part == 1 || script_anim_part == 2);
 
@@ -1175,6 +1180,7 @@ extern float psHUD_FOV;
 
 void player_hud::update(const Fmatrix& cam_trans)
 {
+	HudPreview::Update(cam_trans);
 	HudPoseFrame frame;
 	prepare_hud_pose(cam_trans, frame);
 

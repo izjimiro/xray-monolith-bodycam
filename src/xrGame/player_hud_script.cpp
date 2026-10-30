@@ -1,5 +1,7 @@
 #include "pch_script.h"
 #include "player_hud.h"
+#include "hud_preview.h"
+#include "script_game_object.h"
 
 using namespace luabind;
 
@@ -19,5 +21,22 @@ void player_hud::script_register(lua_State* L)
 		.def("reset_hands", &player_hud::reset_model_script),
 
 		def("get_player_hud", &get_player_hud)
+	];
+
+	module(L, "hud_preview")
+	[
+		def("add", &HudPreview::Add),
+		def("remove", &HudPreview::Remove),
+		def("clear", &HudPreview::Clear),
+		def("exists", &HudPreview::Exists),
+		def("set_transform", &HudPreview::SetTransform),
+		def("attach", &HudPreview::Attach),
+		def("detach", &HudPreview::Detach),
+		def("transform", &HudPreview::Transform),
+		def("set_bone_visible", &HudPreview::SetBoneVisible),
+		def("copy_bones_visibility", &HudPreview::CopyBonesVisibility),
+		def("play", &HudPreview::Play),
+		def("hide_hands", &HudPreview::HideHands),
+		def("hands_hidden", &HudPreview::HandsHidden)
 	];
 }
