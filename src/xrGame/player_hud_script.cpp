@@ -36,6 +36,7 @@ void player_hud::script_register(lua_State* L)
 		def("set_bone_visible", &HudPreview::SetBoneVisible),
 		def("copy_bones_visibility", &HudPreview::CopyBonesVisibility),
 		def("play", &HudPreview::Play),
+		def("follow_pose", &HudPreview::FollowPose),
 		def("hide_hands", &HudPreview::HideHands),
 		def("hands_hidden", &HudPreview::HandsHidden)
 	];

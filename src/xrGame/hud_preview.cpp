@@ -5,6 +5,7 @@
 #include "script_game_object.h"
 #include "../xrEngine/Render.h"
 #include "../Include/xrRender/RenderVisual.h"
+#include "Level.h"
 
 namespace
 {
@@ -15,6 +16,7 @@ namespace
 		Fmatrix local = Fidentity;  // root: relative to the camera; child: offset from the parent
 		Fmatrix world = Fidentity;
 		u32 frame = u32(-1);
+		u16 pose_src = u16(-1); // FollowPose: object id
 	};
 
 	xrCriticalSection lock; // Lua (main thread) vs HUD render
@@ -29,6 +31,29 @@ namespace
 	}
 
 	IKinematics* kinematics(Node* n) { return n && n->visual ? n->visual->dcast_PKinematics() : nullptr; }
+
+	// HUD model of a hand item if it has one, else the world model
+	IKinematics* object_kinematics(CObject* o)
+	{
+		CHudItem* hi = o ? smart_cast<CHudItem*>(o) : nullptr;
+		if (hi && hi->HudItemData())
+			return hi->HudItemData()->m_model;
+		return o && o->Visual() ? o->Visual()->dcast_PKinematics() : nullptr;
+	}
+
+	void copy_pose(IKinematics* dst, IKinematics* src)
+	{
+		for (u16 b = 0; b < dst->LL_BoneCount(); ++b)
+		{
+			const u16 s = src->LL_BoneID(dst->LL_BoneName_dbg(b));
+			if (s == BI_NONE)
+				continue;
+			CBoneInstance& d = dst->LL_GetBoneInstance(b);
+			const CBoneInstance& from = src->LL_GetBoneInstance(s);
+			d.mTransform = from.mTransform;
+			d.mRenderTransform = from.mRenderTransform;
+		}
+	}
 
 	void destroy(Node* n)
 	{
@@ -184,10 +209,7 @@ void HudPreview::CopyBonesVisibility(LPCSTR id, CScriptGameObject* obj)
 {
 	if (!obj)
 		return;
-	CHudItem* hi = smart_cast<CHudItem*>(&obj->object());
-	IKinematics* src = hi && hi->HudItemData() ? hi->HudItemData()->m_model : nullptr;
-	if (!src && obj->object().Visual())
-		src = obj->object().Visual()->dcast_PKinematics();
+	IKinematics* src = object_kinematics(&obj->object());
 	xrCriticalSectionGuard g(lock);
 	IKinematics* dst = kinematics(find(id));
 	if (!src || !dst)
@@ -214,6 +236,13 @@ bool HudPreview::Play(LPCSTR id, LPCSTR motion, bool mix)
 	return true;
 }
 
+void HudPreview::FollowPose(LPCSTR id, CScriptGameObject* obj)
+{
+	xrCriticalSectionGuard g(lock);
+	if (Node* n = find(id))
+		n->pose_src = obj ? obj->ID() : u16(-1);
+}
+
 void HudPreview::HideHands(bool hide) { hide_hands = hide; }
 bool HudPreview::HandsHidden() { return hide_hands && !nodes.empty(); }
 
@@ -233,6 +262,9 @@ void HudPreview::Update(const Fmatrix& hud_camera)
 		{
 			k->CalculateBones_Invalidate();
 			k->CalculateBones(TRUE);
+			if (n->pose_src != u16(-1))
+				if (IKinematics* src = object_kinematics(Level().Objects.net_Find(n->pose_src)))
+					copy_pose(k, src);
 		}
 	}
 }
