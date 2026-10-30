@@ -21,12 +21,14 @@ namespace
 		shared_str pose_part;
 		struct Bone { u16 id; Fmatrix xf, render_xf; };
 		xr_vector<Bone> pose;   // FollowPose once: captured bone poses
+		bool visible = true;    // false - not drawn in the HUD (capture only), children too
 	};
 
 	xrCriticalSection lock; // Lua (main thread) vs HUD render
 	xr_map<shared_str, Node*> nodes;
 	Fmatrix camera = Fidentity;
 	bool hide_hands = false;
+	Fvector4 capture_light = { -0.45f, 0.6f, -0.65f, 0.35f }; // to the key light (view space), ambient
 
 	Node* find(LPCSTR id)
 	{
@@ -94,6 +96,28 @@ namespace
 		return m;
 	}
 
+	bool shown(Node* n)
+	{
+		for (int depth = 0; n && depth < 16; ++depth)
+		{
+			if (!n->visible)
+				return false;
+			n = n->parent.size() ? find(n->parent.c_str()) : nullptr;
+		}
+		return true;
+	}
+
+	bool under(Node* n, Node* root)
+	{
+		for (int depth = 0; n && depth < 16; ++depth)
+		{
+			if (n == root)
+				return true;
+			n = n->parent.size() ? find(n->parent.c_str()) : nullptr;
+		}
+		return false;
+	}
+
 	const Fmatrix& resolve(Node* n, int depth = 0)
 	{
 		if (n->frame == Device.dwFrame)
@@ -105,6 +129,25 @@ namespace
 		else
 			n->world.mul_43(camera, n->local);
 		return n->world;
+	}
+}
+
+namespace
+{
+	void update_node(Node* n)
+	{
+		resolve(n); // parents first, through resolve()
+		if (IKinematicsAnimated* ka = n->visual ? n->visual->dcast_PKinematicsAnimated() : nullptr)
+			ka->UpdateTracks();
+		if (IKinematics* k = kinematics(n))
+		{
+			k->CalculateBones_Invalidate();
+			k->CalculateBones(TRUE);
+			if (n->pose_src != u16(-1))
+				if (IKinematics* src = object_kinematics(Level().Objects.net_Find(n->pose_src), n->pose_part.c_str()))
+					capture_pose(k, src, n->pose);
+			apply_pose(k, n->pose);
+		}
 	}
 }
 
@@ -313,21 +356,7 @@ void HudPreview::Update(const Fmatrix& hud_camera)
 	for (auto& it : nodes)
 		it.second->frame = u32(-1);
 	for (auto& it : nodes)
-	{
-		Node* n = it.second;
-		resolve(n); // parents first, through resolve()
-		if (IKinematicsAnimated* ka = n->visual ? n->visual->dcast_PKinematicsAnimated() : nullptr)
-			ka->UpdateTracks();
-		if (IKinematics* k = kinematics(n))
-		{
-			k->CalculateBones_Invalidate();
-			k->CalculateBones(TRUE);
-			if (n->pose_src != u16(-1))
-				if (IKinematics* src = object_kinematics(Level().Objects.net_Find(n->pose_src), n->pose_part.c_str()))
-					capture_pose(k, src, n->pose);
-			apply_pose(k, n->pose);
-		}
-	}
+		update_node(it.second);
 }
 
 void HudPreview::Render(IDSGraphManager* DM)
@@ -338,7 +367,78 @@ void HudPreview::Render(IDSGraphManager* DM)
 	const auto previous_role = DM->get_HUD_Role();
 	DM->set_HUD_Role(IDSGraphManager::hud_prop);
 	for (auto& it : nodes)
-		if (it.second->visual)
+		if (it.second->visual && shown(it.second))
 			DM->add_Dynamic(it.second->visual, &it.second->world);
 	DM->set_HUD_Role(previous_role);
+}
+
+void HudPreview::SetVisible(LPCSTR id, bool visible)
+{
+	xrCriticalSectionGuard g(lock);
+	if (Node* n = find(id))
+		n->visible = visible;
+}
+
+Fvector HudPreview::BoxCenter(LPCSTR id)
+{
+	xrCriticalSectionGuard g(lock);
+	Node* n = find(id);
+	Fvector c = { 0, 0, 0 };
+	if (n && n->visual)
+		n->visual->getVisData().box.getcenter(c);
+	return c;
+}
+
+Fvector HudPreview::BoxSize(LPCSTR id)
+{
+	xrCriticalSectionGuard g(lock);
+	Node* n = find(id);
+	Fvector d = { 0, 0, 0 };
+	if (n && n->visual)
+		n->visual->getVisData().box.getsize(d);
+	return d;
+}
+
+void HudPreview::CaptureLight(const Fvector& to_light, float ambient)
+{
+	capture_light.set(to_light.x, to_light.y, to_light.z, ambient);
+}
+
+Frect HudPreview::Capture(LPCSTR id, LPCSTR texture, const Fmatrix& cam, float width_m, float height_m, float px_per_m)
+{
+	Frect out;
+	out.set(0, 0, -1, -1);
+	xrCriticalSectionGuard g(lock);
+	Node* root = find(id);
+	const u32 w = iFloor(width_m * px_per_m + 0.5f), h = iFloor(height_m * px_per_m + 0.5f);
+	if (!root || !texture || !texture[0] || !w || !h)
+		return out;
+	// the subtree right now: poses and bones of nodes added this frame are not computed yet
+	xr_vector<IRender_interface::RenderToTextureItem> items;
+	for (auto& it : nodes)
+		if (under(it.second, root))
+			it.second->frame = u32(-1);
+	for (auto& it : nodes)
+	{
+		Node* n = it.second;
+		if (!under(n, root))
+			continue;
+		update_node(n);
+		if (n->visual)
+			items.push_back({ n->visual, n->world });
+	}
+	// camera: cam in the root's space, looking along its k, up j
+	Fmatrix eye, view, project;
+	eye.mul_43(root->world, cam);
+	view.build_camera_dir(eye.c, eye.k, eye.j);
+	project.build_projection_ortho(width_m, height_m, 0.01f, 50.f);
+	Irect r;
+	if (::Render->RenderToTexture(texture, w, h, view, project, items.data(), u32(items.size()), capture_light, r))
+		out.set(float(r.x1), float(r.y1), float(r.x2), float(r.y2));
+	return out;
+}
+
+void HudPreview::ReleaseTexture(LPCSTR texture)
+{
+	::Render->ReleaseRenderTexture(texture);
 }

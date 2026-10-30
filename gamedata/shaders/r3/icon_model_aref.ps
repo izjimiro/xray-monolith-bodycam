@@ -1,0 +1,8 @@
+#include "icon_model.h"
+
+float4 main(icon_v2p I) : SV_Target
+{
+	float4 t_base = s_base.Sample(smp_base, I.tc0);
+	clip(t_base.a - 0.5);
+	return icon_shade(I, t_base);
+}

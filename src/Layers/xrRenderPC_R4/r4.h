@@ -496,6 +496,9 @@ public:
 	virtual void rmNormal();
 	virtual u32 active_phase() { return phase; }; //Swartz: actor shadow
 	void RenderToTarget(RRT target) override;
+	bool RenderToTexture(LPCSTR texture, u32 width, u32 height, const Fmatrix& view, const Fmatrix& project,
+		const RenderToTextureItem* items, u32 count, const Fvector4& light, Irect& opaque) override; // r4_render_to_texture.cpp
+	void ReleaseRenderTexture(LPCSTR texture) override;
 	// Constructor/destructor/loader
 	CRender();
 	virtual ~CRender();

@@ -28,6 +28,16 @@ namespace HudPreview
 	// nil obj - back to the model's own pose. part: "" - the object's HUD model (else world model),
 	// "scope" - the MAS scope HUD model of a weapon (root at the mount, attach_scale)
 	void FollowPose(LPCSTR id, CScriptGameObject* obj, bool once, LPCSTR part);
+	void SetVisible(LPCSTR id, bool visible);          // false - not drawn in the HUD (capture only), children too
+	Fvector BoxCenter(LPCSTR id);                       // bounding box of the node's model in its own space
+	Fvector BoxSize(LPCSTR id);                         // (all parts, hidden ones too)
+	// Render to texture: node id and its children into texture ("$user$name", for UI: CUIStatic:InitTexture),
+	// right now. cam - camera in the node's space (c - position, k - view direction, j - up), orthographic,
+	// width_m x height_m meters, px_per_m pixels per meter; transparent background. Returns pixel bounds of
+	// what was drawn (x2 < x1 - nothing, or no DX11). Light: CaptureLight.
+	Frect Capture(LPCSTR id, LPCSTR texture, const Fmatrix& cam, float width_m, float height_m, float px_per_m);
+	void CaptureLight(const Fvector& to_light, float ambient); // view space direction to the key light; ambient 0..1
+	void ReleaseTexture(LPCSTR texture);
 	void HideHands(bool hide);
 	bool HandsHidden();
 
