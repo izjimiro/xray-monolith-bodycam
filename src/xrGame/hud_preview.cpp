@@ -6,6 +6,7 @@
 #include "../xrEngine/Render.h"
 #include "../Include/xrRender/RenderVisual.h"
 #include "Level.h"
+#include "Weapon.h"
 
 namespace
 {
@@ -16,7 +17,8 @@ namespace
 		Fmatrix local = Fidentity;  // root: relative to the camera; child: offset from the parent
 		Fmatrix world = Fidentity;
 		u32 frame = u32(-1);
-		u16 pose_src = u16(-1); // FollowPose live: object id
+		u16 pose_src = u16(-1); // FollowPose live: object id and part
+		shared_str pose_part;
 		struct Bone { u16 id; Fmatrix xf, render_xf; };
 		xr_vector<Bone> pose;   // FollowPose once: captured bone poses
 	};
@@ -34,9 +36,15 @@ namespace
 
 	IKinematics* kinematics(Node* n) { return n && n->visual ? n->visual->dcast_PKinematics() : nullptr; }
 
-	// HUD model of a hand item if it has one, else the world model
-	IKinematics* object_kinematics(CObject* o)
+	// HUD model of a hand item if it has one, else the world model; part "scope" - MAS scope HUD model of a weapon
+	IKinematics* object_kinematics(CObject* o, LPCSTR part = "")
 	{
+		if (part && !xr_strcmp(part, "scope"))
+		{
+			CWeapon* w = o ? smart_cast<CWeapon*>(o) : nullptr;
+			CAnonHudItem* s = w ? w->ScopeHudItem() : nullptr;
+			return s && s->HudItemData() ? s->HudItemData()->m_model : nullptr;
+		}
 		CHudItem* hi = o ? smart_cast<CHudItem*>(o) : nullptr;
 		if (hi && hi->HudItemData())
 			return hi->HudItemData()->m_model;
@@ -249,15 +257,16 @@ bool HudPreview::Play(LPCSTR id, LPCSTR motion, bool mix)
 	return true;
 }
 
-void HudPreview::FollowPose(LPCSTR id, CScriptGameObject* obj, bool once)
+void HudPreview::FollowPose(LPCSTR id, CScriptGameObject* obj, bool once, LPCSTR part)
 {
-	IKinematics* src = obj ? object_kinematics(&obj->object()) : nullptr;
+	IKinematics* src = obj ? object_kinematics(&obj->object(), part) : nullptr;
 	xrCriticalSectionGuard g(lock);
 	Node* n = find(id);
 	if (!n)
 		return;
 	n->pose.clear();
 	n->pose_src = obj && !once ? obj->ID() : u16(-1);
+	n->pose_part = part;
 	if (once && src && kinematics(n))
 		capture_pose(kinematics(n), src, n->pose);
 }
@@ -282,7 +291,7 @@ void HudPreview::Update(const Fmatrix& hud_camera)
 			k->CalculateBones_Invalidate();
 			k->CalculateBones(TRUE);
 			if (n->pose_src != u16(-1))
-				if (IKinematics* src = object_kinematics(Level().Objects.net_Find(n->pose_src)))
+				if (IKinematics* src = object_kinematics(Level().Objects.net_Find(n->pose_src), n->pose_part.c_str()))
 					capture_pose(k, src, n->pose);
 			apply_pose(k, n->pose);
 		}
