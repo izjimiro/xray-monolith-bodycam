@@ -1103,6 +1103,8 @@ public:
 	void Weapon_SetScopeOffset(const Fvector& pos, const Fvector& rot_deg);
 	Fvector Weapon_ScopeOffsetPos();
 	Fvector Weapon_ScopeOffsetRot();
+	void Weapon_SetAimOffset(const Fvector& pos, const Fvector& alt_pos);
+	Fvector Weapon_AimOffset(bool alt);
 	Fmatrix Weapon_ScopeMountHud();
 
 	//CWeaponAmmo

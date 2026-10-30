@@ -1139,6 +1139,8 @@ public:
 	void LoadModularScopes(LPCSTR section);
 	// Script offset of the MAS scope in the mount frame (pos m, rot rad X, Y, Z), on top of attach_mount
 	Fvector m_scope_offset_pos{}, m_scope_offset_rot{};
+	// Script addition to the MAS aim offset, HUD metres after attach_scale: main aim, alt aim
+	Fvector m_aim_offset_extra{}, m_alt_aim_offset_extra{};
 
 	bool m_altAimPos;
 	u8 m_zoomtype;

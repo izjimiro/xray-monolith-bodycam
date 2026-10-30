@@ -2576,6 +2576,22 @@ Fvector CScriptGameObject::Weapon_ScopeOffsetRot()
 	return w ? Fvector().set(rad2deg(w->m_scope_offset_rot.x), rad2deg(w->m_scope_offset_rot.y), rad2deg(w->m_scope_offset_rot.z)) : Fvector().set(0.f, 0.f, 0.f);
 }
 
+// Addition to the MAS aim offset (main and alt aim), HUD metres: keeps the eye on a scope moved along the rail
+void CScriptGameObject::Weapon_SetAimOffset(const Fvector& pos, const Fvector& alt_pos)
+{
+	if (CWeapon* w = smart_cast<CWeapon*>(&object()))
+	{
+		w->m_aim_offset_extra = pos;
+		w->m_alt_aim_offset_extra = alt_pos;
+	}
+}
+
+Fvector CScriptGameObject::Weapon_AimOffset(bool alt)
+{
+	CWeapon* w = smart_cast<CWeapon*>(&object());
+	return w ? (alt ? w->m_alt_aim_offset_extra : w->m_aim_offset_extra) : Fvector().set(0.f, 0.f, 0.f);
+}
+
 // HUD-space transform of the scope mount (attach_mount_hud_offset, without the script offset) of this weapon
 // while it is in the hands; identity otherwise. Points from it go to game.world2ui(p, true).
 Fmatrix CScriptGameObject::Weapon_ScopeMountHud()

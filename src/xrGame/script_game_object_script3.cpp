@@ -559,6 +559,8 @@ class_<CScriptGameObject> script_register_game_object2(class_<CScriptGameObject>
 		.def("weapon_set_scope_offset", &CScriptGameObject::Weapon_SetScopeOffset)
 		.def("weapon_scope_offset_pos", &CScriptGameObject::Weapon_ScopeOffsetPos)
 		.def("weapon_scope_offset_rot", &CScriptGameObject::Weapon_ScopeOffsetRot)
+		.def("weapon_set_aim_offset", &CScriptGameObject::Weapon_SetAimOffset)
+		.def("weapon_aim_offset", &CScriptGameObject::Weapon_AimOffset)
 		.def("weapon_scope_mount_hud", &CScriptGameObject::Weapon_ScopeMountHud)
 		//For Weapon & Outfit
 		.def("install_upgrade", SAFE_WRAP(&CScriptGameObject::InstallUpgrade))

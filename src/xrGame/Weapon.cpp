@@ -3789,6 +3789,7 @@ void CWeapon::ResolveHudOffsetTarget(u8 idx, Fvector& curr_offs, Fvector& curr_r
 					curr_aim_rot.set((adjustments ? si->alt_aim_offset_rot() : si->m_measures.m_hands_offset[1][3]));
 				}
 				aim_offs.mul(hi->attach_scale());
+				aim_offs.add(idx == 1 ? m_aim_offset_extra : m_alt_aim_offset_extra);
 				curr_offs.add(aim_offs);
 			} else {
 				curr_offs.set((adjustments ? hi->attach_base_offset_pos() : hi->m_measures.m_hands_offset[0][6]));
