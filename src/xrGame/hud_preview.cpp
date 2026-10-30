@@ -97,7 +97,8 @@ bool HudPreview::Add(LPCSTR id, LPCSTR visual)
 void HudPreview::Remove(LPCSTR id)
 {
 	xrCriticalSectionGuard g(lock);
-	xr_vector<shared_str> doomed{ id };
+	xr_vector<shared_str> doomed;
+	doomed.push_back(shared_str(id));
 	for (u32 i = 0; i < doomed.size(); ++i) // children, grandchildren...
 		for (auto& it : nodes)
 			if (it.second->parent == doomed[i])
