@@ -591,8 +591,6 @@ protected:
 	bool isGrenadeLauncherActive = false;
 	u8 zoomTypeBeforeLauncher = 0;
 	float m_fSafeModeRotateTime;
-	float m_sprint_pose = 0.f; // 0..1: sprint shows the lowered pose without lowering the weapon
-	float m_sprint_time = 0.f; // s of continuous sprint, for [sprint_pose] lower_delay
 	SafemodeAnm m_safemode_anm[2];
 
 	Fmatrix m_Offset;

@@ -3028,35 +3028,6 @@ void CWeapon::UpdateHudAdditional(Fmatrix& trans)
 			offset_factor = std::min(Device.fTimeDelta / 0.2f, 0.4f);
 		}
 
-		// Sprint pose: while sprinting with nothing else going on, the weapon eases into its authored lowered
-		// pose without being lowered (no safemode). Times: [sprint_pose] lower_delay / lower_time / raise_time, s.
-		{
-			static const float lower_delay = READ_IF_EXISTS(pSettings, r_float, "sprint_pose", "lower_delay", 0.f);
-			static const float lower_time = _max(READ_IF_EXISTS(pSettings, r_float, "sprint_pose", "lower_time", .35f), .01f);
-			static const float raise_time = _max(READ_IF_EXISTS(pSettings, r_float, "sprint_pose", "raise_time", .25f), .01f);
-			// A script HUD animation named [sprint_pose] action_anm* (e.g. the misfire check) counts as an action,
-			// like a reload. Checked only while the pose could apply.
-			static const shared_str action_anm = READ_IF_EXISTS(pSettings, r_string, "sprint_pose", "action_anm", "misfire_check\\");
-			const auto action = [&] {
-				for (script_layer* l : g_player_hud->m_script_layers)
-					if (l && (l->active || l->blend_amount > 0.f) && !strncmp(l->m_name.c_str(), action_anm.c_str(), action_anm.size()))
-						return true;
-				return false;
-			};
-			const bool sprint = idx == 0 && GetState() == eIdle && m_bCanBeLowered && (pActor->MovingState() & ACTOR_DEFS::mcSprint) && !action();
-			m_sprint_time = sprint ? m_sprint_time + Device.fTimeDelta : 0.f; // lowering starts after lower_delay of sprint
-			m_sprint_pose = clampr(m_sprint_pose + (sprint && m_sprint_time >= lower_delay ? Device.fTimeDelta / lower_time : -Device.fTimeDelta / raise_time), 0.f, 1.f);
-			if (idx == 0 && m_sprint_pose > 0.f)
-			{
-				const float t = m_sprint_pose, w = t * t * t * (10.f + t * (-15.f + 6.f * t)); // min-jerk ease
-				Fvector lowered_offs, lowered_rot, lowered_aim;
-				ResolveHudOffsetTarget(4, lowered_offs, lowered_rot, lowered_aim, true);
-				curr_offs.lerp(Fvector(curr_offs), lowered_offs, w);
-				curr_rot.lerp(Fvector(curr_rot), lowered_rot, w);
-				offset_factor = .4f; // the weight is eased already: follow it (InterpolateOffset applies 2.5x)
-			}
-		}
-
 		InterpolateOffset(m_hud_offset[0], curr_offs, offset_factor);
 		InterpolateOffset(m_hud_offset[1], curr_rot, offset_factor);
 		InterpolateOffset(m_hud_aim_rot, curr_aim_rot, factor);
