@@ -33,6 +33,8 @@ void player_hud::script_register(lua_State* L)
 		def("attach", &HudPreview::Attach),
 		def("detach", &HudPreview::Detach),
 		def("transform", &HudPreview::Transform),
+		def("has_bone", &HudPreview::HasBone),
+		def("bone_transform", &HudPreview::BoneTransform),
 		def("set_bone_visible", &HudPreview::SetBoneVisible),
 		def("copy_bones_visibility", &HudPreview::CopyBonesVisibility),
 		def("play", &HudPreview::Play),

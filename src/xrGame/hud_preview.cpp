@@ -217,6 +217,38 @@ Fmatrix HudPreview::Transform(LPCSTR id)
 	return resolve(n);
 }
 
+bool HudPreview::HasBone(LPCSTR id, LPCSTR bone)
+{
+	xrCriticalSectionGuard g(lock);
+	IKinematics* k = kinematics(find(id));
+	return k && k->LL_BoneID(bone) != BI_NONE;
+}
+
+Fmatrix HudPreview::BoneTransform(LPCSTR id, LPCSTR bone)
+{
+	xrCriticalSectionGuard g(lock);
+	Node* n = find(id);
+	IKinematics* k = kinematics(n);
+	const u16 b = k ? k->LL_BoneID(bone) : BI_NONE;
+	if (b == BI_NONE)
+		return Fidentity;
+	n->frame = u32(-1);
+	const Fmatrix world = resolve(n);
+	Fmatrix local = k->LL_GetTransform(b);
+	const u16 p = k->LL_GetData(b).GetParentID();
+	if (!k->LL_GetBoneVisible(b) && p != BI_NONE)
+	{
+		// parent * inverse(parent bind) * bone bind
+		Fmatrix ip, rel;
+		ip.invert(k->LL_GetData(p).get_bind_transform());
+		rel.mul_43(ip, k->LL_GetData(b).get_bind_transform());
+		local.mul_43(k->LL_GetTransform(p), rel);
+	}
+	Fmatrix out;
+	out.mul_43(world, local);
+	return out;
+}
+
 void HudPreview::SetBoneVisible(LPCSTR id, LPCSTR bone, bool visible)
 {
 	xrCriticalSectionGuard g(lock);

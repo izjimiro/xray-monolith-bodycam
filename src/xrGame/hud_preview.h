@@ -17,6 +17,10 @@ namespace HudPreview
 	void Attach(LPCSTR id, LPCSTR parent, const Fvector& pos, const Fvector& rot); // rot rad, X then Y then Z
 	void Detach(LPCSTR id);
 	Fmatrix Transform(LPCSTR id);                       // final HUD-space matrix (points -> game.world2ui(p, true))
+	bool HasBone(LPCSTR id, LPCSTR bone);
+	// HUD-space matrix of a bone of a node model (identity if no bone); a hidden bone is placed by its bind pose
+	// relative to the parent, so the point stays where the bone would be when shown
+	Fmatrix BoneTransform(LPCSTR id, LPCSTR bone);
 	void SetBoneVisible(LPCSTR id, LPCSTR bone, bool visible);
 	void CopyBonesVisibility(LPCSTR id, CScriptGameObject* obj); // by bone names, from the object's HUD model (else world)
 	bool Play(LPCSTR id, LPCSTR motion, bool mix);      // looped cycle on an animated model
