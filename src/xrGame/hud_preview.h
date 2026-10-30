@@ -28,6 +28,7 @@ namespace HudPreview
 	// nil obj - back to the model's own pose. part: "" - the object's HUD model (else world model),
 	// "scope" - the MAS scope HUD model of a weapon (root at the mount, attach_scale)
 	void FollowPose(LPCSTR id, CScriptGameObject* obj, bool once, LPCSTR part);
+	void SetScale(LPCSTR id, float scale);              // uniform scale of the node's model (as attach_scale)
 	void SetVisible(LPCSTR id, bool visible);          // false - not drawn in the HUD (capture only), children too
 	Fvector BoxCenter(LPCSTR id);                       // bounding box of the node's model in its own space
 	Fvector BoxSize(LPCSTR id);                         // (all parts, hidden ones too)

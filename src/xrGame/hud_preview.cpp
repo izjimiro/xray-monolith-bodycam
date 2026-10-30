@@ -22,6 +22,7 @@ namespace
 		struct Bone { u16 id; Fmatrix xf, render_xf; };
 		xr_vector<Bone> pose;   // FollowPose once: captured bone poses
 		bool visible = true;    // false - not drawn in the HUD (capture only), children too
+		float scale = 1.f;      // uniform, in the node's own space (children are not scaled)
 	};
 
 	xrCriticalSection lock; // Lua (main thread) vs HUD render
@@ -125,9 +126,22 @@ namespace
 		n->frame = Device.dwFrame;
 		Node* p = n->parent.size() && depth < 16 ? find(n->parent.c_str()) : nullptr;
 		if (p)
-			n->world.mul_43(resolve(p, depth + 1), n->local);
+		{
+			// a parent's scale stays with the parent's model
+			Fmatrix pw = resolve(p, depth + 1);
+			if (p->scale != 1.f)
+			{
+				const float k = 1.f / p->scale;
+				pw.i.mul(k); pw.j.mul(k); pw.k.mul(k);
+			}
+			n->world.mul_43(pw, n->local);
+		}
 		else
 			n->world.mul_43(camera, n->local);
+		if (n->scale != 1.f)
+		{
+			n->world.i.mul(n->scale); n->world.j.mul(n->scale); n->world.k.mul(n->scale);
+		}
 		return n->world;
 	}
 }
@@ -441,4 +455,14 @@ Frect HudPreview::Capture(LPCSTR id, LPCSTR texture, const Fmatrix& cam, float w
 void HudPreview::ReleaseTexture(LPCSTR texture)
 {
 	::Render->ReleaseRenderTexture(texture);
+}
+
+void HudPreview::SetScale(LPCSTR id, float scale)
+{
+	xrCriticalSectionGuard g(lock);
+	if (Node* n = find(id))
+	{
+		n->scale = scale > EPS ? scale : 1.f;
+		n->frame = u32(-1);
+	}
 }

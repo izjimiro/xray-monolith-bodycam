@@ -39,6 +39,7 @@ void player_hud::script_register(lua_State* L)
 		def("copy_bones_visibility", &HudPreview::CopyBonesVisibility),
 		def("play", &HudPreview::Play),
 		def("follow_pose", &HudPreview::FollowPose),
+		def("set_scale", &HudPreview::SetScale),
 		def("set_visible", &HudPreview::SetVisible),
 		def("box_center", &HudPreview::BoxCenter),
 		def("box_size", &HudPreview::BoxSize),

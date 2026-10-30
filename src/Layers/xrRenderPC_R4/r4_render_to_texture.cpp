@@ -32,7 +32,7 @@ private:
 CBlender_render_to_texture blender_opaque("icon_model");
 CBlender_render_to_texture blender_aref("icon_model_aref");
 
-struct Target
+struct RttTarget
 {
 	ref_rt color, depth;
 	ID3D11Texture2D* staging = nullptr;
@@ -47,7 +47,7 @@ struct Target
 	}
 };
 
-xr_map<shared_str, Target> targets;
+xr_map<shared_str, RttTarget> targets;
 xr_map<shared_str, ref_shader> shaders; // by base texture, alpha test and skinning
 
 bool alpha_tested(const dxRender_Visual* V)
@@ -108,7 +108,7 @@ void draw(dxRender_Visual* V, const Fmatrix& world, const Fvector4& light)
 	}
 }
 
-bool prepare(Target& t, LPCSTR name, u32 w, u32 h)
+bool prepare(RttTarget& t, LPCSTR name, u32 w, u32 h)
 {
 	if (t.color && t.width == w && t.height == h)
 		return true;
@@ -136,7 +136,7 @@ bool prepare(Target& t, LPCSTR name, u32 w, u32 h)
 }
 
 // pixel bounds of alpha > 0
-void opaque_bounds(Target& t, Irect& r)
+void opaque_bounds(RttTarget& t, Irect& r)
 {
 	r.set(0, 0, -1, -1);
 	if (!t.staging)
@@ -170,7 +170,7 @@ bool CRender::RenderToTexture(LPCSTR texture, u32 width, u32 height, const Fmatr
 	opaque.set(0, 0, -1, -1);
 	if (!Device.b_is_Ready || !texture || !texture[0] || !width || !height || width > 4096 || height > 4096)
 		return false;
-	Target& t = targets[shared_str(texture)];
+	RttTarget& t = targets[shared_str(texture)];
 	if (!prepare(t, texture, width, height))
 		return false;
 
