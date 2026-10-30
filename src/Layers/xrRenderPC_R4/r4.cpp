@@ -567,11 +567,8 @@ void CRender::create()
 	Device.ModelDefferClear = xr_make_delegate(Models, &CModelPool::DeleteQueuedDeffer);
 }
 
-void RenderToTextureShutdown(); // r4_render_to_texture.cpp
-
 void CRender::destroy()
 {
-	RenderToTextureShutdown();
 	m_bMakeAsyncSS = false;
 	FluidManager.Destroy();
 	GMBase.destroy();

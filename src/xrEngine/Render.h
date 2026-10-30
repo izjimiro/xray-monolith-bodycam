@@ -453,14 +453,6 @@ public:
 	virtual u32 memory_usage() { return 0; }
 	virtual u32 active_phase() = 0; //Swartz: actor shadow
 	virtual void RenderToTarget(RRT target) = 0;
-	// Render to texture (API for scripts through xrGame): draws the visuals into the render target named texture
-	// ("$user$...", usable by UI and shaders; created or resized as needed), immediately, outside the frame.
-	// Own forward shader: base texture, key/fill light (light.xyz - direction to the light in view space, w - ambient),
-	// transparent background. opaque - pixel bounds of what was drawn (x2 < x1 when nothing). DX11 only, false elsewhere.
-	struct RenderToTextureItem { IRenderVisual* visual; Fmatrix world; };
-	virtual bool RenderToTexture(LPCSTR texture, u32 width, u32 height, const Fmatrix& view, const Fmatrix& project,
-		const RenderToTextureItem* items, u32 count, const Fvector4& light, Irect& opaque) { return false; }
-	virtual void ReleaseRenderTexture(LPCSTR texture) {}
 	// Constructor/destructor
 	virtual ~IRender_interface();
 protected:

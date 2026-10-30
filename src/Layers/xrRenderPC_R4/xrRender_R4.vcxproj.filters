@@ -999,9 +999,6 @@
     <ClCompile Include="r4_R_rain.cpp">
       <Filter>Core</Filter>
     </ClCompile>
-    <ClCompile Include="r4_render_to_texture.cpp">
-      <Filter>Core</Filter>
-    </ClCompile>
     <ClCompile Include="r4_R_render.cpp">
       <Filter>Core</Filter>
     </ClCompile>

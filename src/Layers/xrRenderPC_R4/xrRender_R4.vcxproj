@@ -883,7 +883,6 @@
     <ClCompile Include="r4_rendertarget_phase_smap_S.cpp" />
     <ClCompile Include="r4_rendertarget_phase_ssao.cpp" />
     <ClCompile Include="r4_R_rain.cpp" />
-    <ClCompile Include="r4_render_to_texture.cpp" />
     <ClCompile Include="r4_R_render.cpp" />
     <ClCompile Include="R_Backend_LOD.cpp" />
     <ClCompile Include="..\xrRenderDX10\dx10EventWrapper.cpp" />
