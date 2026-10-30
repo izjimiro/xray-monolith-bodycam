@@ -252,6 +252,7 @@ struct BoneCallbackParams
 {
 	Fvector m_current;
 	Fvector m_target;
+	float m_time = .1f; // s to ease current toward target; 0 = snap
 
 	BoneCallbackParams()
 	{
@@ -412,6 +413,12 @@ public:
 	void StopBlendAnm(LPCSTR name, bool bForce = false);
 	void StopAllBlendAnms(bool bForce);
 	float SetBlendAnmTime(LPCSTR name, float time);
+	// Script bone rotation: a local rotation (rad, applied X, Y, Z) on top of the animation, eased over time s.
+	// Set on both arm models; the binding survives a hands model reload.
+	void SetBoneRotation(LPCSTR bone, const Fvector& rot, float time);
+	void ResetBoneRotations(float time);
+	void BindScriptBones();
+	xr_map<shared_str, BoneCallbackParams*> m_script_bones;
 	void render_hud(IDSGraphManager* DM);
 	void render_item_ui();
 	bool render_item_ui_query();

@@ -841,6 +841,7 @@ player_hud::~player_hud()
 	delete_data(m_script_layers);
 	delete_data(m_movement_layers);
 	delete_data(m_bone_callback_params);
+	delete_data(m_script_bones);
 }
 
 void player_hud::FingerCallback(CBoneInstance* B)
@@ -855,7 +856,7 @@ void player_hud::FingerCallback(CBoneInstance* B)
 		Fvector diff[2];
 		diff[0] = target;
 		diff[0].sub(current);
-		diff[0].mul(Device.fTimeDelta / .1f);
+		diff[0].mul(params->m_time > 0.f ? _min(Device.fTimeDelta / params->m_time, 1.f) : 1.f);
 		current.add(diff[0]);
 	}
 	else
@@ -940,6 +941,8 @@ void player_hud::load(const shared_str& player_hud_sect, bool force)
 	//m_model->dcast_PKinematics()->LL_GetBoneInstance(bone_r_triggerfinger0).set_callback(bctCustom, FingerCallback, m_bone_callback_params[bip01_r_finger1]);
 	//m_model->dcast_PKinematics()->LL_GetBoneInstance(bone_r_triggerfinger01).set_callback(bctCustom, FingerCallback, m_bone_callback_params[bip01_r_finger11]);
 	//m_model->dcast_PKinematics()->LL_GetBoneInstance(bone_r_triggerfinger02).set_callback(bctCustom, FingerCallback, m_bone_callback_params[bip01_r_finger12]);
+
+	BindScriptBones();
 
 	// hides the unused arm meshes
 	m_model->dcast_PKinematics()->LL_SetBoneVisible(l_arm, FALSE, TRUE);
@@ -1702,6 +1705,39 @@ void player_hud::PlayBlendAnm(LPCSTR name, u8 part, float speed, float power, bo
 
 	script_layer* anm = xr_new<script_layer>(name, part, speed, power, bLooped, pivot_bone, bodycam_lowering_influence);
 	m_script_layers.push_back(anm);
+}
+
+void player_hud::BindScriptBones()
+{
+	for (auto& it : m_script_bones)
+		for (IKinematicsAnimated* model : { m_model, m_model_2 })
+		{
+			IKinematics* K = model ? model->dcast_PKinematics() : nullptr;
+			const u16 id = K ? K->LL_BoneID(it.first) : BI_NONE;
+			if (id != BI_NONE)
+				K->LL_GetBoneInstance(id).set_callback(bctCustom, FingerCallback, it.second);
+		}
+}
+
+void player_hud::SetBoneRotation(LPCSTR bone, const Fvector& rot, float time)
+{
+	BoneCallbackParams*& p = m_script_bones[bone];
+	if (!p)
+	{
+		p = xr_new<BoneCallbackParams>();
+		BindScriptBones();
+	}
+	p->m_target = rot;
+	p->m_time = time;
+}
+
+void player_hud::ResetBoneRotations(float time)
+{
+	for (auto& it : m_script_bones)
+	{
+		it.second->m_target.set(0.f, 0.f, 0.f);
+		it.second->m_time = time;
+	}
 }
 
 void player_hud::StopBlendAnm(LPCSTR name, bool bForce)

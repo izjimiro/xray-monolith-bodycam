@@ -1947,6 +1947,17 @@ void PlayBlendAnmBodycam(LPCSTR name, u8 part, float speed, float power, bool bL
 	g_player_hud->PlayBlendAnm(name, part, speed, power, bLooped, no_restart, pivot_bone, lowering_influence);
 }
 
+// Degrees in Lua; local bone rotation of the HUD hands on top of the animation (see player_hud::SetBoneRotation).
+void SetHudBoneRotation(LPCSTR bone, float x, float y, float z, float time)
+{
+	g_player_hud->SetBoneRotation(bone, Fvector().set(deg2rad(x), deg2rad(y), deg2rad(z)), time);
+}
+
+void ResetHudBoneRotations(float time)
+{
+	g_player_hud->ResetBoneRotations(time);
+}
+
 void StopBlendAnm(LPCSTR name, bool bForce)
 {
 	g_player_hud->StopBlendAnm(name, bForce);
@@ -3229,6 +3240,8 @@ void CLevel::script_register(lua_State* L)
 		def("stop_hud_anm", StopBlendAnm),
 		def("stop_all_hud_anms", StopAllBlendAnms),
 		def("set_hud_anm_time", SetBlendAnmTime),
+		def("set_hud_bone_rotation", SetHudBoneRotation),
+		def("reset_hud_bone_rotations", ResetHudBoneRotations),
 		def("only_allow_movekeys", block_all_except_movement),
 		def("only_movekeys_allowed", only_movement_allowed),
 		def("set_actor_allow_ladder", set_actor_allow_ladder),
