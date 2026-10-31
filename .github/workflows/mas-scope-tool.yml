@@ -1,0 +1,19 @@
+name: mas-scope-tool
+on:
+  push:
+    branches: [tools-mas-scope]
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install numpy pyinstaller
+      - run: pyinstaller --onefile --windowed --name MAS_Scope_Tool mas_scope_tool.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MAS_Scope_Tool
+          path: dist/MAS_Scope_Tool.exe
