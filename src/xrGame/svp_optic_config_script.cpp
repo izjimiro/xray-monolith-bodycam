@@ -1398,7 +1398,7 @@ luabind::object svp_current_optic_profile()
 	luabind::object result = svp_normalized_table(parsed, false);
 	// the token stays with its owner: remove the key with a raw nil (an empty luabind::object() has no Lua
 	// state and crashed in lua_rawgeti)
-	result.push(state);
+	result.pushvalue();
 	lua_pushstring(state, "context_token");
 	lua_pushnil(state);
 	lua_rawset(state, -3);
