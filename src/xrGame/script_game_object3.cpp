@@ -2550,6 +2550,9 @@ bool CScriptGameObject::Weapon_SetScope(LPCSTR section)
 			w->ValidateModularScopeState("script", true);
 			if (CWeaponMagazined* wm = smart_cast<CWeaponMagazined*>(w))
 				wm->LoadScopeKoeffs();
+			// as a normal scope attach: zoom factors, dynamic zoom, scope UI of the new scope
+			w->UpdateAddonsVisibility();
+			w->InitAddons();
 			return true;
 		}
 	return false;

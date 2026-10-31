@@ -1133,6 +1133,7 @@ public:
 	DEFINE_VECTOR(shared_str, SCOPES_VECTOR, SCOPES_VECTOR_IT);
 	SCOPES_VECTOR m_scopes;
 	u8 m_cur_scope;
+	bool m_scope_from_save = false; // MAS: m_cur_scope read from a save (net_Spawn must not pick a random scope)
 	bool HasValidScopeIndex() const { return m_cur_scope < m_scopes.size(); }
 	bool SetCurrentScopeIndex(u8 index, LPCSTR source);
 	bool ValidateModularScopeState(LPCSTR source, bool rebuild_item);

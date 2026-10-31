@@ -1255,10 +1255,13 @@ BOOL CWeapon::net_Spawn(CSE_Abstract* DC)
 	iAmmoElapsed = E->a_elapsed;
 	m_flagsAddOnState = E->m_addon_flags.get();
 	
-	if (m_modular_attachments && m_cur_scope == 0 && (m_flagsAddOnState & CSE_ALifeItemWeapon::eWeaponAddonScope) != 0 && m_scopes.size() > 1)
+	// MAS: a freshly spawned weapon with a scope gets a random one; a loaded weapon keeps its saved scope
+	// (index 0 is a real scope too: the first in the list)
+	if (m_modular_attachments && !m_scope_from_save && m_cur_scope == 0 && (m_flagsAddOnState & CSE_ALifeItemWeapon::eWeaponAddonScope) != 0 && m_scopes.size() > 1)
 	{
 		m_cur_scope = ::Random.randI(1, m_scopes.size());
 	}
+	m_scope_from_save = false;
 	if (m_modular_attachments
 		&& 0 != (m_flagsAddOnState & CSE_ALifeItemWeapon::eWeaponAddonScope)
 		&& ValidateModularScopeState("net_spawn", true))
@@ -1410,6 +1413,7 @@ void CWeapon::load(IReader& input_packet)
 	inherited::load(input_packet);
 	load_data(iAmmoElapsed, input_packet);
 	load_data(m_cur_scope, input_packet);
+	m_scope_from_save = true;
 	if (m_cur_scope == 0xFF) // MAS scope saved by name; old saves keep the index
 	{
 		xr_string name;
