@@ -6,6 +6,8 @@ on:
 jobs:
   build:
     runs-on: windows-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -17,3 +19,10 @@ jobs:
         with:
           name: MAS_Scope_Tool
           path: dist/MAS_Scope_Tool.exe
+      - name: Publish to release mas-scope-tool
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view mas-scope-tool >/dev/null 2>&1 || gh release create mas-scope-tool --target tools-mas-scope --title "MAS Scope Tool" --notes "Windows exe of the MAS scope converter (branch tools-mas-scope)." --prerelease
+          gh release upload mas-scope-tool dist/MAS_Scope_Tool.exe --clobber
