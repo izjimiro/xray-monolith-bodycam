@@ -1396,8 +1396,13 @@ luabind::object svp_current_optic_profile()
 	}
 	SParsedConfig parsed = svp_config_view(config);
 	luabind::object result = svp_normalized_table(parsed, false);
-	// context_token is left out (nil): the token stays with its owner. Assigning an empty luabind::object()
-	// here pushed an invalid value and crashed in lua_rawgeti.
+	// the token stays with its owner: remove the key with a raw nil (an empty luabind::object() has no Lua
+	// state and crashed in lua_rawgeti)
+	result.push(state);
+	lua_pushstring(state, "context_token");
+	lua_pushnil(state);
+	lua_rawset(state, -3);
+	lua_pop(state, 1);
 	result["has_owner"] = config.context_token != 0;
 	result["valid"] = true;
 	result["route"] = "typed";
